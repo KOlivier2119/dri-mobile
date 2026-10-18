@@ -1,73 +1,45 @@
-import { Platform, StyleSheet, Text, type TextProps } from 'react-native';
+import { StyleSheet, Text, type TextProps } from 'react-native';
 
-import { Fonts, ThemeColor } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
+import { Colors, Fonts } from '@/constants/theme';
 
 export type ThemedTextProps = TextProps & {
-  type?: 'default' | 'title' | 'small' | 'smallBold' | 'subtitle' | 'link' | 'linkPrimary' | 'code';
-  themeColor?: ThemeColor;
+  type?:
+    | 'default'
+    | 'display'
+    | 'title'
+    | 'subtitle'
+    | 'body'
+    | 'caption'
+    | 'label'
+    | 'overline'
+    | 'small';
+  color?: string;
 };
 
-export function ThemedText({ style, type = 'default', themeColor, ...rest }: ThemedTextProps) {
-  const theme = useTheme();
-
+export function ThemedText({ style, type = 'body', color, ...rest }: ThemedTextProps) {
   return (
     <Text
-      style={[
-        { color: theme[themeColor ?? 'text'] },
-        type === 'default' && styles.default,
-        type === 'title' && styles.title,
-        type === 'small' && styles.small,
-        type === 'smallBold' && styles.smallBold,
-        type === 'subtitle' && styles.subtitle,
-        type === 'link' && styles.link,
-        type === 'linkPrimary' && styles.linkPrimary,
-        type === 'code' && styles.code,
-        style,
-      ]}
+      style={[{ color: color ?? Colors.warm }, type && styles[type], style]}
       {...rest}
     />
   );
 }
 
 const styles = StyleSheet.create({
-  small: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: 500,
-  },
-  smallBold: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: 700,
-  },
-  default: {
-    fontSize: 16,
-    lineHeight: 24,
-    fontWeight: 500,
-  },
-  title: {
-    fontSize: 48,
-    fontWeight: 600,
-    lineHeight: 52,
-  },
-  subtitle: {
-    fontSize: 32,
-    lineHeight: 44,
-    fontWeight: 600,
-  },
-  link: {
-    lineHeight: 30,
-    fontSize: 14,
-  },
-  linkPrimary: {
-    lineHeight: 30,
-    fontSize: 14,
-    color: '#3c87f7',
-  },
-  code: {
-    fontFamily: Fonts.mono,
-    fontWeight: Platform.select({ android: 700 }) ?? 500,
+  default: { fontFamily: Fonts.regular, color: Colors.warm },
+  display: { fontFamily: Fonts.bold, fontSize: 40, lineHeight: 44, letterSpacing: -1, color: Colors.warm },
+  title: { fontFamily: Fonts.bold, fontSize: 30, lineHeight: 36, letterSpacing: -0.6, color: Colors.warm },
+  subtitle: { fontFamily: Fonts.semibold, fontSize: 21, lineHeight: 28, letterSpacing: -0.3, color: Colors.warm },
+  body: { fontFamily: Fonts.regular, fontSize: 16, lineHeight: 24, color: Colors.warm },
+  caption: { fontFamily: Fonts.regular, fontSize: 14, lineHeight: 20, color: Colors.warmDim },
+  label: { fontFamily: Fonts.medium, fontSize: 13, lineHeight: 18, color: Colors.warmDim },
+  overline: {
+    fontFamily: Fonts.semibold,
     fontSize: 12,
+    lineHeight: 16,
+    letterSpacing: 1.6,
+    textTransform: 'uppercase',
+    color: Colors.mint,
   },
+  small: { fontFamily: Fonts.medium, fontSize: 13, lineHeight: 18, color: Colors.warm },
 });
