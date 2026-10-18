@@ -35,8 +35,7 @@ export function Wordmark({ style, size = 30 }: { style?: object; size?: number }
 
 const styles = StyleSheet.create({
   word: {
-    fontFamily: Fonts.semibold,
-    fontWeight: '700',
+    fontFamily: Fonts.bold,
     color: Colors.warm,
   },
 });

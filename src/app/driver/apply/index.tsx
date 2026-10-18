@@ -17,6 +17,7 @@ import { TextField } from '@/components/ui/text-field';
 import { DocUploadField } from '@/components/ui/doc-upload';
 import { WheelIcon } from '@/components/onboarding/illustrations';
 import { MOCK, mockDelay, useSession } from '@/store/session';
+import { formatLocal, normalizeDigits } from '@/utils/phone';
 
 type Form = {
   firstName: string;
@@ -170,7 +171,11 @@ export default function DriverApplyScreen() {
               <TextField
                 label="Alternate phone"
                 value={form.altPhone}
-                onChangeText={(v) => set('altPhone', onlyDigits(v, 9))}
+                onChangeText={(text) => {
+                  const digits = normalizeDigits(text);
+                  const current = normalizeDigits(form.altPhone);
+                  set('altPhone', digits === current ? text : formatLocal(digits));
+                }}
                 keyboardType="phone-pad"
                 helper="Optional — a number we can reach you on besides your login."
                 error={err('altPhone')}
@@ -307,7 +312,7 @@ function validateStep(step: number, f: Form): Partial<Record<keyof Form, string>
   }
   if (step === 1) {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(f.email)) e.email = 'Enter a valid email address.';
-    if (f.altPhone && f.altPhone.length < 9) e.altPhone = 'Enter 9 digits or leave it empty.';
+    if (f.altPhone && normalizeDigits(f.altPhone).length !== 9) e.altPhone = 'Enter 9 digits or leave it empty.';
     if (f.city.trim().length < 2) e.city = 'Enter your city.';
   }
   if (step === 2 && f.nationalId.length !== 16) e.nationalId = 'The National ID has 16 digits.';

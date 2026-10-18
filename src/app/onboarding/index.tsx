@@ -9,9 +9,9 @@ import {
   type LayoutChangeEvent,
 } from 'react-native';
 import Animated, {
+  interpolateColor,
   useAnimatedStyle,
   useSharedValue,
-  withTiming,
   type SharedValue,
 } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -177,7 +177,7 @@ function RoleHint({ icon, text }: { icon: React.ReactNode; text: string }) {
   );
 }
 
-/** Three pills; the active one slides and stretches. */
+/** Three pills; the active one stretches and turns mint as pages change. */
 function Indicator({
   scrollX,
   width,
@@ -185,16 +185,33 @@ function Indicator({
   scrollX: SharedValue<number>;
   width: number;
 }) {
-  const style = useAnimatedStyle(() => ({
-    transform: [{ translateX: withTiming((scrollX.value / width) * 30, { duration: 220 }) }],
-  }));
   return (
     <View style={styles.dotsTrack} accessibilityLabel="Onboarding progress">
-      <Animated.View style={[styles.dotActive, style]} />
-      <View style={styles.dot} />
-      <View style={styles.dot} />
+      {[0, 1, 2].map((i) => (
+        <ProgressDot key={i} index={i} scrollX={scrollX} width={width} />
+      ))}
     </View>
   );
+}
+
+function ProgressDot({
+  index,
+  scrollX,
+  width,
+}: {
+  index: number;
+  scrollX: SharedValue<number>;
+  width: number;
+}) {
+  const style = useAnimatedStyle(() => {
+    const t = scrollX.value / width;
+    const active = Math.max(0, 1 - Math.abs(t - index));
+    return {
+      width: 7 + 19 * active,
+      backgroundColor: interpolateColor(active, [0, 1], [Colors.inkBorder, Colors.mint]),
+    };
+  });
+  return <Animated.View style={[styles.dot, style]} />;
 }
 
 const styles = StyleSheet.create({
@@ -214,15 +231,8 @@ const styles = StyleSheet.create({
     minHeight: 40,
     paddingVertical: Spacing.two,
   },
-  dotsTrack: { flexDirection: 'row', gap: 8, alignItems: 'center' },
-  dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: Colors.inkBorder },
-  dotActive: {
-    position: 'absolute',
-    width: 26,
-    height: 7,
-    borderRadius: 4,
-    backgroundColor: Colors.mint,
-  },
+  dotsTrack: { flexDirection: 'row', gap: 8, alignItems: 'center', minHeight: 8 },
+  dot: { height: 7, borderRadius: 4, backgroundColor: Colors.inkBorder },
   skip: { color: Colors.warmDim, fontSize: 15 },
   pager: { flex: 1 },
   page: {
