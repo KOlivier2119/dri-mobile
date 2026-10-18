@@ -1,13 +1,6 @@
 import { router } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
-import {
-  ScrollView,
-  StyleSheet,
-  View,
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
-  type LayoutChangeEvent,
-} from 'react-native';
+import { ScrollView, StyleSheet, View, useWindowDimensions, type NativeScrollEvent, type NativeSyntheticEvent, type LayoutChangeEvent } from 'react-native';
 import Animated, {
   interpolateColor,
   useAnimatedStyle,
@@ -27,11 +20,17 @@ const PAGES = 3;
 
 export default function OnboardingScreen() {
   const { completeOnboarding } = useSession();
+  const { width: screenWidth } = useWindowDimensions();
   const [page, setPage] = useState(0);
   const [width, setWidth] = useState(0);
   const scrollX = useSharedValue(0);
   const scrollRef = useRef<ScrollView>(null);
   const busy = useRef(false);
+
+  const headlineStyle = [
+    styles.headline,
+    { fontSize: Math.min(34, Math.max(26, screenWidth * 0.094)) },
+  ];
 
   const goTo = useCallback(
     (next: number) => {
@@ -87,7 +86,7 @@ export default function OnboardingScreen() {
               <ThemedText type="overline" style={styles.eyebrow}>
                 Designed driver service
               </ThemedText>
-              <ThemedText type="title" style={styles.headline}>
+              <ThemedText type="title" maxFontSizeMultiplier={1.2} style={headlineStyle}>
                 Your car.{'\n'}Your driver.
               </ThemedText>
               <ThemedText type="body" color={Colors.warmDim} style={styles.copy}>
@@ -99,7 +98,7 @@ export default function OnboardingScreen() {
               <ThemedText type="overline" style={styles.eyebrow}>
                 BOB Night · Private Driver
               </ThemedText>
-              <ThemedText type="title" style={styles.headline}>
+              <ThemedText type="title" maxFontSizeMultiplier={1.2} style={headlineStyle}>
                 Your plans, handled.
               </ThemedText>
               <ThemedText type="body" color={Colors.warmDim} style={[styles.copy, styles.copyCenter]}>
@@ -113,7 +112,7 @@ export default function OnboardingScreen() {
               <ThemedText type="overline" style={styles.eyebrow}>
                 Built for peace of mind
               </ThemedText>
-              <ThemedText type="title" style={styles.headline}>
+              <ThemedText type="title" maxFontSizeMultiplier={1.2} style={headlineStyle}>
                 Move with confidence.
               </ThemedText>
               <ThemedText type="body" color={Colors.warmDim} style={styles.copy}>
@@ -243,7 +242,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.three,
   },
   eyebrow: { textAlign: 'center' },
-  headline: { fontSize: 34, lineHeight: 40, textAlign: 'center' },
+  headline: { lineHeight: 40, textAlign: 'center' },
   copy: { fontSize: 16, lineHeight: 24, textAlign: 'center', maxWidth: 340 },
   copyCenter: { marginBottom: Spacing.two },
   bottomRow: {

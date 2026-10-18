@@ -1,7 +1,7 @@
 import * as Haptics from 'expo-haptics';
 import { ActivityIndicator, Platform, Pressable, StyleSheet, View, type PressableProps } from 'react-native';
 
-import { Colors, Radius } from '@/constants/theme';
+import { Colors, Radius, Spacing } from '@/constants/theme';
 import { ThemedText } from '@/components/themed-text';
 
 type Variant = 'primary' | 'secondary' | 'ghost';
@@ -56,6 +56,8 @@ export function Button({
           {icon}
           <ThemedText
             type="subtitle"
+            numberOfLines={1}
+            maxFontSizeMultiplier={1.3}
             style={[styles.label, variant === 'primary' && styles.labelPrimary]}>
             {title}
           </ThemedText>
@@ -88,7 +90,7 @@ const styles = StyleSheet.create({
   base: {
     minHeight: 56,
     borderRadius: Radius.pill,
-    paddingHorizontal: Radius.pill,
+    paddingHorizontal: Spacing.five,
     justifyContent: 'center',
     alignItems: 'center',
   },
