@@ -5,6 +5,7 @@
   "dependencies": {
     "@expo-google-fonts/geist": "^0.4.2",
     "@expo/ui": "~57.0.25",
+    "@hookform/resolvers": "^5.9.2",
     "@react-native-async-storage/async-storage": "2.2.0",
     "expo": "~57.0.30",
     "expo-constants": "~57.0.22",
