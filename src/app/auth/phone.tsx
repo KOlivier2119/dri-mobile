@@ -13,7 +13,6 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { z } from 'zod';
 
 import { Colors, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { ThemedText } from '@/components/themed-text';
@@ -21,6 +20,13 @@ import { BrandMark } from '@/components/brand/mark';
 import { Button, ChevronRight } from '@/components/ui/button';
 import { TextField } from '@/components/ui/text-field';
 import { MOCK, mockDelay, useSession } from '@/store/session';
+import {
+  formatLocal,
+  normalizeDigits,
+  phoneSchema,
+  toDialString,
+  type PhoneFormValues,
+} from '@/utils/phone';
 
 const COUNTRIES = [
   { code: '250', name: 'Rwanda', sample: '78 123 4567' },
@@ -30,32 +36,14 @@ const COUNTRIES = [
   { code: '255', name: 'Tanzania', sample: '60 000 0000' },
 ] as const;
 
-const schema = z.object({
-  dial: z.string(),
-  phone: z
-    .string()
-    .transform((v) => v.replace(/\D/g, ''))
-    .refine((v) => v.length >= 9, 'Enter the full phone number.')
-    .refine((v) => v.length <= 9 || v.length <= 12, 'That number looks too long.'),
-});
-
-type FormValues = z.input<typeof schema>;
-
-/** Keep the caret stable: reformat only when the raw digits are unchanged. */
-function formatLocal(digits: string) {
-  return digits.replace(/(\d{2})(\d{0,3})(\d{0,4})/, (_m, a, b, c) =>
-    [a, b, c].filter(Boolean).join(' '),
-  );
-}
-
 export default function PhoneScreen() {
   const { authenticate } = useSession();
   const [dial, setDial] = useState<string>(COUNTRIES[0].code);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const { control, handleSubmit } = useForm<FormValues>({
-    resolver: zodResolver(schema),
+  const { control, handleSubmit } = useForm<PhoneFormValues>({
+    resolver: zodResolver(phoneSchema),
     defaultValues: { phone: '' },
     mode: 'onTouched',
   });
@@ -64,7 +52,7 @@ export default function PhoneScreen() {
     if (submitting) return;
     setSubmitting(true);
     await mockDelay(MOCK.verifyDelayMs);
-    await authenticate(`+${dial} ${phone.replace(/\D/g, '')}`);
+    await authenticate(toDialString(dial, phone));
     router.push('/auth/otp');
   };
   const onSubmit = handleSubmit((values) => void submit(values));
@@ -116,8 +104,8 @@ export default function PhoneScreen() {
                 }
                 value={value}
                 onChangeText={(text) => {
-                  const digits = text.replace(/\D/g, '').slice(0, 9);
-                  const current = value.replace(/\D/g, '');
+                  const digits = normalizeDigits(text);
+                  const current = normalizeDigits(value);
                   // only reformat when digits actually changed (stable caret)
                   onChange(digits === current ? value : formatLocal(digits));
                 }}

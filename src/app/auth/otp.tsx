@@ -14,15 +14,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Button, ChevronRight } from '@/components/ui/button';
 import { OtpInput } from '@/components/ui/otp-input';
 import { MOCK, mockDelay, useSession } from '@/store/session';
-
-/** Mask everything but the last 4 digits: "+250781234567" → "+250 ••• •4567". */
-function maskPhone(phone: string | null) {
-  if (!phone) return 'your number';
-  const digits = phone.replace(/\D/g, '');
-  const tail = digits.slice(-4);
-  const head = phone.trim().split(' ')[0];
-  return `${head} ••• ${tail}`;
-}
+import { maskPhone } from '@/utils/phone';
 
 export default function OtpScreen() {
   const { session } = useSession();
