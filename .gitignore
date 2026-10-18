@@ -41,3 +41,6 @@ example
 # generated native folders
 /ios
 /android
+
+# Qoder CLI local settings
+.qoder/settings.local.json
