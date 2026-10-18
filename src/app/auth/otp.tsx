@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -100,12 +100,23 @@ export default function OtpScreen() {
             </ThemedText>
           ) : null}
 
-          <View style={styles.demoCard}>
+          <Pressable
+            onPress={() => {
+              if (verifying) return;
+              setCode(MOCK.otpCode);
+              void verify(MOCK.otpCode);
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={`Use demo code ${MOCK.otpCode.split('').join(' ')}`}
+            style={({ pressed }) => [styles.demoCard, pressed && { opacity: 0.7 }]}>
             <ThemedText type="label">Demo code (simulated — no SMS is sent)</ThemedText>
             <ThemedText type="subtitle" style={styles.demoCode}>
               {MOCK.otpCode}
             </ThemedText>
-          </View>
+            <ThemedText type="small" color={Colors.mint}>
+              Tap to fill and verify
+            </ThemedText>
+          </Pressable>
 
           <Button
             title="Verify"

@@ -42,11 +42,15 @@ export default function PhoneScreen() {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const { control, handleSubmit } = useForm<PhoneFormValues>({
+  const { control, handleSubmit, setValue } = useForm<PhoneFormValues>({
     resolver: zodResolver(phoneSchema),
     defaultValues: { phone: '' },
     mode: 'onTouched',
   });
+
+  const fillDemo = () => {
+    setValue('phone', formatLocal(normalizeDigits(MOCK.demoPhone)), { shouldValidate: false });
+  };
 
   const submit = async ({ phone }: { phone: string }) => {
     if (submitting) return;
@@ -85,7 +89,8 @@ export default function PhoneScreen() {
                 keyboardType="phone-pad"
                 autoComplete="tel"
                 textContentType="telephoneNumber"
-                returnKeyType="next"
+                returnKeyType="go"
+                onSubmitEditing={() => void onSubmit()}
                 onBlur={onBlur}
                 error={fieldState.error?.message}
                 helper="Digits only — we format it for you."
@@ -121,6 +126,17 @@ export default function PhoneScreen() {
             accessoryRight={<ChevronRight />}
             style={styles.cta}
           />
+
+          <ThemedText
+            type="small"
+            color={Colors.mint}
+            style={styles.demoFill}
+            role="button"
+            accessibilityRole="button"
+            accessibilityLabel={`Use demo phone number ${MOCK.demoPhone}`}
+            onPress={fillDemo}>
+            Demo shortcut — use {MOCK.demoPhone}
+          </ThemedText>
 
           <ThemedText type="small" color={Colors.warmFaint} style={styles.legal}>
             By continuing you agree to the DRI Terms of Service and Privacy Policy. This prototype
@@ -177,6 +193,7 @@ const styles = StyleSheet.create({
   header: { gap: Spacing.two, marginBottom: Spacing.three },
   headline: { fontSize: 30, lineHeight: 36 },
   cta: { marginTop: Spacing.two },
+  demoFill: { textAlign: 'center', paddingVertical: Spacing.two },
   legal: { textAlign: 'center', marginTop: Spacing.three, lineHeight: 18 },
   dial: {
     flexDirection: 'row',

@@ -75,6 +75,33 @@ const STEPS = [
 
 const onlyDigits = (v: string, max: number) => v.replace(/\D/g, '').slice(0, max);
 
+/** Valid demo values so a tester can walk the whole flow quickly. */
+const DEMO: Partial<Form> = {
+  firstName: 'Jean',
+  lastName: 'Mugisha',
+  dob: '12.03.1995',
+  email: 'jean.mugisha@example.com',
+  altPhone: '78 999 1122',
+  city: 'Kigali',
+  nationalId: '1199580000000001',
+  license: 'RWK1234567',
+  licenseExpiry: '01.01.2030',
+  vehicle: 'Toyota RAV4',
+  plate: 'RAD 123 A',
+  idDoc: true,
+  licenseDoc: true,
+  agree: true,
+};
+
+const STEP_KEYS: (keyof Form)[][] = [
+  ['firstName', 'lastName', 'dob'],
+  ['email', 'altPhone', 'city'],
+  ['nationalId'],
+  ['license', 'licenseExpiry', 'vehicle', 'plate'],
+  ['idDoc', 'licenseDoc'],
+  ['agree'],
+];
+
 export default function DriverApplyScreen() {
   const { setDriverStatus } = useSession();
   const [step, setStep] = useState(0);
@@ -84,6 +111,15 @@ export default function DriverApplyScreen() {
 
   const set = <K extends keyof Form>(key: K, value: Form[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
+
+  const autofill = () => {
+    const patch: Partial<Form> = {};
+    for (const key of STEP_KEYS[step]) {
+      if (DEMO[key] !== undefined) patch[key] = DEMO[key] as never;
+    }
+    setForm((f) => ({ ...f, ...patch }));
+    setTouched(false);
+  };
 
   const errors = validateStep(step, form);
   const valid = Object.keys(errors).length === 0;
@@ -146,6 +182,16 @@ export default function DriverApplyScreen() {
           <ThemedText type="body" color={Colors.warmDim} style={styles.why}>
             {STEPS[step].why}
           </ThemedText>
+
+          <Pressable
+            onPress={autofill}
+            accessibilityRole="button"
+            accessibilityLabel="Autofill demo data for this step"
+            style={({ pressed }) => [styles.fillChip, pressed && { opacity: 0.7 }]}>
+            <ThemedText type="small" color={Colors.mint}>
+              Autofill demo data
+            </ThemedText>
+          </Pressable>
 
           {step === 0 && (
             <>
@@ -381,6 +427,16 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 26, lineHeight: 32 },
   why: { marginTop: -Spacing.two },
+  fillChip: {
+    alignSelf: 'flex-start',
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: Colors.inkBorder,
+    backgroundColor: Colors.inkSurface,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+  },
   footer: {
     paddingHorizontal: Spacing.four,
     paddingBottom: Spacing.three,
