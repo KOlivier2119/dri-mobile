@@ -67,6 +67,7 @@ function Shell() {
         <Stack.Screen name="auth/phone" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="auth/otp" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="driver/apply/index" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="driver/status" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="client/home" options={{ animation: 'fade' }} />
         <Stack.Screen name="driver/home" options={{ animation: 'fade' }} />
       </Stack>
