@@ -1,12 +1,6 @@
 import { router } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withSequence,
-  withTiming,
-} from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
@@ -19,22 +13,9 @@ import { maskPhone } from '@/utils/phone';
 export default function OtpScreen() {
   const { session } = useSession();
   const [code, setCode] = useState('');
-  const [error, setError] = useState<string | null>(null);
   const [verifying, setVerifying] = useState(false);
   const [seconds, setSeconds] = useState<number>(MOCK.otpResendSeconds);
-  const [attempts, setAttempts] = useState(0);
   const inputRef = useRef<TextInput>(null);
-  const shake = useSharedValue(0);
-
-  useEffect(() => {
-    if (attempts === 0) return;
-    shake.value = withSequence(
-      withTiming(-10, { duration: 55 }),
-      withTiming(10, { duration: 55 }),
-      withTiming(-6, { duration: 55 }),
-      withTiming(0, { duration: 55 }),
-    );
-  }, [attempts, shake]);
 
   useEffect(() => {
     if (seconds <= 0) return;
@@ -42,25 +23,13 @@ export default function OtpScreen() {
     return () => clearTimeout(t);
   }, [seconds]);
 
-  const verify = useCallback(
-    async (attempt: string) => {
-      if (verifying || attempt.length !== MOCK.otpCode.length) return;
-      setVerifying(true);
-      setError(null);
-      await mockDelay(MOCK.verifyDelayMs);
-      if (attempt === MOCK.otpCode) {
-        router.replace(session.role === 'driver' ? '/driver/apply' : '/client/home');
-        return;
-      }
-      setAttempts((a) => a + 1);
-      setError('That code doesn’t match. Check the demo code and try again.');
-      setVerifying(false);
-      setCode('');
-    },
-    [session.role, verifying],
-  );
-
-  const shakeStyle = useAnimatedStyle(() => ({ transform: [{ translateX: shake.value }] }));
+  const verify = async () => {
+    if (verifying) return;
+    setVerifying(true);
+    await mockDelay(MOCK.verifyDelayMs);
+    // Demo pass-through: every complete code verifies — nothing is checked against a provider.
+    router.replace(session.role === 'driver' ? '/driver/apply' : '/client/home');
+  };
 
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
@@ -76,35 +45,25 @@ export default function OtpScreen() {
               <ThemedText type="body" color={Colors.warm}>
                 {maskPhone(session.phone)}
               </ThemedText>
-              . This is a demo — use the code below.
+              . This is a demo — any 6 digits will verify.
             </ThemedText>
           </View>
 
-          <Animated.View style={[styles.otpWrap, shakeStyle]}>
+          <View style={styles.otpWrap}>
             <OtpInput
               ref={inputRef}
               value={code}
-              onChange={(v) => {
-                setCode(v);
-                setError(null);
-              }}
-              onComplete={(v) => void verify(v)}
-              error={!!error}
+              onChange={setCode}
+              onComplete={() => void verify()}
               disabled={verifying}
             />
-          </Animated.View>
-
-          {error ? (
-            <ThemedText type="small" color={Colors.danger} style={styles.error} accessibilityLiveRegion="polite">
-              {error}
-            </ThemedText>
-          ) : null}
+          </View>
 
           <Pressable
             onPress={() => {
               if (verifying) return;
               setCode(MOCK.otpCode);
-              void verify(MOCK.otpCode);
+              void verify();
             }}
             accessibilityRole="button"
             accessibilityLabel={`Use demo code ${MOCK.otpCode.split('').join(' ')}`}
@@ -122,7 +81,7 @@ export default function OtpScreen() {
             title="Verify"
             loading={verifying}
             disabled={code.length !== 6 || verifying}
-            onPress={() => void verify(code)}
+            onPress={() => void verify()}
             accessoryRight={<ChevronRight />}
             style={styles.cta}
           />
@@ -137,7 +96,6 @@ export default function OtpScreen() {
                   : () => {
                       setSeconds(MOCK.otpResendSeconds);
                       setCode('');
-                      setError(null);
                       inputRef.current?.focus();
                     }
               }
@@ -176,7 +134,6 @@ const styles = StyleSheet.create({
   headline: { fontSize: 30, lineHeight: 36 },
   sub: { lineHeight: 22 },
   otpWrap: { gap: Spacing.three },
-  error: { textAlign: 'center' },
   demoCard: {
     alignSelf: 'center',
     alignItems: 'center',

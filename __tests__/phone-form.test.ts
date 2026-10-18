@@ -3,7 +3,6 @@ import {
   isCompleteLocalNumber,
   maskPhone,
   normalizeDigits,
-  phoneSchema,
   toDialString,
 } from '@/utils/phone';
 import { MOCK } from '@/store/session';
@@ -30,26 +29,6 @@ describe('phone input normalization', () => {
   it('detects complete numbers only at full length', () => {
     expect(isCompleteLocalNumber('78 123 456')).toBe(false);
     expect(isCompleteLocalNumber('78 123 4567')).toBe(true);
-  });
-});
-
-describe('phone schema validation', () => {
-  it('accepts a formatted 9-digit number', () => {
-    const parsed = phoneSchema.safeParse({ dial: '250', phone: '78 123 4567' });
-    expect(parsed.success).toBe(true);
-  });
-
-  it('rejects incomplete numbers with a human message', () => {
-    const parsed = phoneSchema.safeParse({ dial: '250', phone: '78123' });
-    expect(parsed.success).toBe(false);
-    if (!parsed.success) {
-      expect(parsed.error.issues[0].message).toMatch(/full 9-digit/);
-    }
-  });
-
-  it('rejects a missing country code', () => {
-    const parsed = phoneSchema.safeParse({ dial: '', phone: '781234567' });
-    expect(parsed.success).toBe(false);
   });
 });
 

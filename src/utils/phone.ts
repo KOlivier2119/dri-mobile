@@ -1,5 +1,3 @@
-import { z } from 'zod';
-
 /** Max local-number digits accepted before the mock layer refuses input. */
 export const MAX_LOCAL_DIGITS = 9;
 
@@ -21,16 +19,6 @@ export function normalizeDigits(text: string, max = MAX_LOCAL_DIGITS) {
 export function isCompleteLocalNumber(text: string) {
   return normalizeDigits(text).length === MAX_LOCAL_DIGITS;
 }
-
-export const phoneSchema = z.object({
-  dial: z.string().min(1, 'Choose a country code.'),
-  phone: z
-    .string()
-    .transform((v) => normalizeDigits(v))
-    .refine((v) => v.length === MAX_LOCAL_DIGITS, 'Enter the full 9-digit phone number.'),
-});
-
-export type PhoneFormValues = z.input<typeof phoneSchema>;
 
 /** Compose the stored mock display form: "+250 781234567". Never duplicates the dial code. */
 export function toDialString(dial: string, phone: string) {

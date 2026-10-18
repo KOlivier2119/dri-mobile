@@ -1,7 +1,5 @@
-import { zodResolver } from '@hookform/resolvers/zod';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
 import {
   KeyboardAvoidingView,
   Modal,
@@ -20,13 +18,7 @@ import { BrandMark } from '@/components/brand/mark';
 import { Button, ChevronRight } from '@/components/ui/button';
 import { TextField } from '@/components/ui/text-field';
 import { MOCK, mockDelay, useSession } from '@/store/session';
-import {
-  formatLocal,
-  normalizeDigits,
-  phoneSchema,
-  toDialString,
-  type PhoneFormValues,
-} from '@/utils/phone';
+import { formatLocal, normalizeDigits, toDialString } from '@/utils/phone';
 
 const COUNTRIES = [
   { code: '250', name: 'Rwanda', sample: '78 123 4567' },
@@ -40,26 +32,18 @@ export default function PhoneScreen() {
   const { authenticate } = useSession();
   const [dial, setDial] = useState<string>(COUNTRIES[0].code);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [phone, setPhone] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const { control, handleSubmit, setValue } = useForm<PhoneFormValues>({
-    resolver: zodResolver(phoneSchema),
-    defaultValues: { phone: '' },
-    mode: 'onTouched',
-  });
+  const fillDemo = () => setPhone(formatLocal(normalizeDigits(MOCK.demoPhone)));
 
-  const fillDemo = () => {
-    setValue('phone', formatLocal(normalizeDigits(MOCK.demoPhone)), { shouldValidate: false });
-  };
-
-  const submit = async ({ phone }: { phone: string }) => {
+  const submit = async () => {
     if (submitting) return;
     setSubmitting(true);
     await mockDelay(MOCK.verifyDelayMs);
-    await authenticate(toDialString(dial, phone));
+    await authenticate(toDialString(dial, phone || MOCK.demoPhone));
     router.push('/auth/otp');
   };
-  const onSubmit = handleSubmit((values) => void submit(values));
 
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
@@ -80,49 +64,41 @@ export default function PhoneScreen() {
             </ThemedText>
           </View>
 
-          <Controller
-            control={control}
-            name="phone"
-            render={({ field: { onChange, onBlur, value }, fieldState }) => (
-              <TextField
-                label="Phone number"
-                keyboardType="phone-pad"
-                autoComplete="tel"
-                textContentType="telephoneNumber"
-                returnKeyType="go"
-                onSubmitEditing={() => void onSubmit()}
-                onBlur={onBlur}
-                error={fieldState.error?.message}
-                helper="Digits only — we format it for you."
-                prefix={
-                  <Pressable
-                    onPress={() => setPickerOpen(true)}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Country code, plus ${dial}. Change`}
-                    hitSlop={8}
-                    style={styles.dial}>
-                    <ThemedText type="subtitle" style={{ fontSize: 16 }}>
-                      +{dial}
-                    </ThemedText>
-                    <View style={styles.chevronDown} />
-                  </Pressable>
-                }
-                value={value}
-                onChangeText={(text) => {
-                  const digits = normalizeDigits(text);
-                  const current = normalizeDigits(value);
-                  // only reformat when digits actually changed (stable caret)
-                  onChange(digits === current ? value : formatLocal(digits));
-                }}
-              />
-            )}
+          <TextField
+            label="Phone number"
+            keyboardType="phone-pad"
+            autoComplete="tel"
+            textContentType="telephoneNumber"
+            returnKeyType="go"
+            onSubmitEditing={() => void submit()}
+            helper="Digits only — we format it for you. Demo mode: any number passes, blank uses the demo number."
+            prefix={
+              <Pressable
+                onPress={() => setPickerOpen(true)}
+                accessibilityRole="button"
+                accessibilityLabel={`Country code, plus ${dial}. Change`}
+                hitSlop={8}
+                style={styles.dial}>
+                <ThemedText type="subtitle" style={{ fontSize: 16 }}>
+                  +{dial}
+                </ThemedText>
+                <View style={styles.chevronDown} />
+              </Pressable>
+            }
+            value={phone}
+            onChangeText={(text) => {
+              const digits = normalizeDigits(text);
+              const current = normalizeDigits(phone);
+              // only reformat when digits actually changed (stable caret)
+              setPhone(digits === current ? text : formatLocal(digits));
+            }}
           />
 
           <Button
             title="Send code"
             loading={submitting}
             disabled={submitting}
-            onPress={onSubmit}
+            onPress={() => void submit()}
             accessoryRight={<ChevronRight />}
             style={styles.cta}
           />
