@@ -48,3 +48,24 @@ export function bookingProgress(b: Booking) {
       return '28%';
   }
 }
+
+/** Timeline steps shown while a booking is live, in order. */
+export const BOOKING_STEPS = ['requested', 'matched', 'onTheWay', 'arrived', 'onTrip', 'done'] as const;
+
+/** Index into BOOKING_STEPS for where a booking is now. */
+export function bookingStep(b: Pick<Booking, 'status' | 'tripStatus'>): number {
+  if (b.status === 'COMPLETED') return 5;
+  if (b.status !== 'DRIVER_ASSIGNED') return 0;
+  switch (b.tripStatus) {
+    case 'DRIVER_EN_ROUTE':
+      return 2;
+    case 'ARRIVED':
+      return 3;
+    case 'IN_PROGRESS':
+      return 4;
+    case 'COMPLETED':
+      return 5;
+    default:
+      return 1;
+  }
+}

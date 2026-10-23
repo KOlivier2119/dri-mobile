@@ -7,11 +7,10 @@ import { ThemedText } from '@/components/themed-text';
 import { Button, ChevronRight } from '@/components/ui/button';
 import { FormError, errorMessage } from '@/components/ui/form-error';
 import { Screen } from '@/components/ui/screen';
-import { ServiceTile } from '@/components/ui/service-tile';
+import { ServiceCards } from '@/components/ui/service-card';
 import { PlaceField, PlacePicker, type PickedPlace } from '@/components/place-picker';
 import { WhenPicker, earliestSlot } from '@/components/when-picker';
 import { CarPicker, carChoiceError, cleanPlate, type CarChoice } from '@/components/car-picker';
-import { MoonIcon, WheelIcon } from '@/components/onboarding/illustrations';
 import { ApiError } from '@/api/client';
 import { Bookings, Quotes, Vehicles } from '@/api/endpoints';
 import type { Quote, ServiceCode } from '@/api/types';
@@ -184,22 +183,7 @@ export default function RequestScreen() {
         />
       </View>
 
-      <View style={styles.services} accessibilityRole="radiogroup">
-        <ServiceTile
-          active={service === 'BOB_NIGHT'}
-          onPress={() => setService('BOB_NIGHT')}
-          icon={(color) => <MoonIcon size={22} color={color} />}
-          title={t('services.BOB_NIGHT')}
-          copy={t('services.bobNightCopy')}
-        />
-        <ServiceTile
-          active={service === 'PRIVATE_DRIVER'}
-          onPress={() => setService('PRIVATE_DRIVER')}
-          icon={(color) => <WheelIcon size={22} color={color} />}
-          title={t('services.PRIVATE_DRIVER')}
-          copy={t('services.privateDriverCopy')}
-        />
-      </View>
+      <ServiceCards value={service} onChange={setService} compact />
 
       {service === 'PRIVATE_DRIVER' ? (
         <View style={styles.hours}>
@@ -291,7 +275,6 @@ function StepButton({ label, a11y, disabled, onPress }: { label: string; a11y: s
 
 const styles = StyleSheet.create({
   route: { gap: Spacing.three },
-  services: { flexDirection: 'row', gap: Spacing.two },
   hours: {
     flexDirection: 'row',
     alignItems: 'center',

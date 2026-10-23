@@ -32,6 +32,15 @@ export const Colors = {
   dangerSoft: '#FBE8E5',
 
   scrim: 'rgba(20, 32, 26, 0.38)',
+
+  // Dark surfaces: photo overlays and the BOB Night card. Text on them uses
+  // onNight / onNightDim (AA on `night`).
+  night: '#0D1914',
+  nightRaised: '#16261F',
+  onNight: '#FFFFFF',
+  onNightDim: 'rgba(255, 255, 255, 0.74)',
+  glass: 'rgba(255, 255, 255, 0.16)',
+  glassBorder: 'rgba(255, 255, 255, 0.28)',
 } as const;
 
 const geist = (weight: '400' | '500' | '600' | '700') =>
@@ -70,6 +79,18 @@ export const Shadow = Platform.select({
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
     elevation: 2,
+  },
+}) as object;
+
+/** Deeper lift for floating cards and photo tiles. */
+export const ShadowLifted = Platform.select({
+  web: { boxShadow: '0 2px 6px rgba(20,32,26,0.06), 0 14px 32px rgba(20,32,26,0.10)' },
+  default: {
+    shadowColor: '#14201A',
+    shadowOpacity: 0.12,
+    shadowRadius: 22,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 6,
   },
 }) as object;
 

@@ -1,12 +1,16 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import Animated, { FadeInDown, ZoomIn } from 'react-native-reanimated';
 
-import { Colors, Radius, Shadow, Spacing } from '@/constants/theme';
+import { Colors, Radius, ShadowLifted, Spacing } from '@/constants/theme';
+import { Cars, Photos } from '@/constants/images';
 import { ThemedText } from '@/components/themed-text';
 import { Button, ChevronRight } from '@/components/ui/button';
 import { Screen } from '@/components/ui/screen';
-import { CarIcon, WheelIcon } from '@/components/onboarding/illustrations';
+import { CheckIcon } from '@/components/onboarding/illustrations';
+import { Photo, Scrim } from '@/components/ui/photo';
+import { PressableScale } from '@/components/ui/pressable-scale';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { useI18n } from '@/i18n';
 import { useSession, type Journey } from '@/store/session';
@@ -45,18 +49,18 @@ export default function RoleScreen() {
           accessoryRight={<ChevronRight />}
         />
       }>
-      <View style={styles.header}>
+      <Animated.View entering={FadeInDown.duration(450)} style={styles.header}>
         <ThemedText type="title">{t('role.title')}</ThemedText>
         <ThemedText type="body" color={Colors.textDim}>
           {t('role.subtitle')}
         </ThemedText>
-      </View>
+      </Animated.View>
 
-      <View style={styles.choices} accessibilityRole="radiogroup">
+      <Animated.View entering={FadeInDown.delay(120).duration(500)} style={styles.choices} accessibilityRole="radiogroup">
         <Choice
           active={selected === 'customer'}
           onPress={() => setSelected('customer')}
-          icon={(color) => <CarIcon size={26} color={color} />}
+          photo={Cars.corolla}
           title={t('role.riderTitle')}
           copy={t('role.riderCopy')}
           testID="role-customer"
@@ -64,12 +68,12 @@ export default function RoleScreen() {
         <Choice
           active={selected === 'driver'}
           onPress={() => setSelected('driver')}
-          icon={(color) => <WheelIcon size={26} color={color} />}
+          photo={Photos.wheelWide}
           title={t('role.driverTitle')}
           copy={t('role.driverCopy')}
           testID="role-driver"
         />
-      </View>
+      </Animated.View>
 
       {!session.user ? (
         <ThemedText type="body" color={Colors.textDim} style={styles.signIn}>
@@ -100,32 +104,34 @@ export default function RoleScreen() {
 function Choice({
   active,
   onPress,
-  icon,
+  photo,
   title,
   copy,
   testID,
 }: {
   active: boolean;
   onPress: () => void;
-  icon: (color: string) => React.ReactNode;
+  photo: number;
   title: string;
   copy: string;
   testID?: string;
 }) {
   return (
-    <Pressable
+    <PressableScale
       onPress={onPress}
       accessibilityRole="radio"
       accessibilityState={{ selected: active }}
       accessibilityLabel={`${title}. ${copy}`}
-      style={({ pressed }) => [
-        styles.choice,
-        active && styles.choiceActive,
-        pressed && !active && styles.choicePressed,
-      ]}
+      style={[styles.choice, active && styles.choiceActive]}
       testID={testID}>
-      <View style={[styles.iconBox, active && styles.iconBoxActive]}>
-        {icon(active ? Colors.onPrimary : Colors.primary)}
+      <View style={styles.photoBox}>
+        <Photo source={photo} />
+        <Scrim stops={[[0, 0], [0.6, 0], [1, 0.35]]} />
+        {active ? (
+          <Animated.View entering={ZoomIn.springify().damping(14)} style={styles.check}>
+            <CheckIcon size={16} color={Colors.onPrimary} strokeWidth={2.6} />
+          </Animated.View>
+        ) : null}
       </View>
       <View style={styles.choiceText}>
         <ThemedText type="subtitle" numberOfLines={1}>
@@ -133,10 +139,7 @@ function Choice({
         </ThemedText>
         <ThemedText type="caption">{copy}</ThemedText>
       </View>
-      <View style={[styles.radio, active && styles.radioActive]}>
-        {active ? <View style={styles.radioDot} /> : null}
-      </View>
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -145,42 +148,27 @@ const styles = StyleSheet.create({
   signIn: { textAlign: 'center' },
   choices: { gap: Spacing.three },
   choice: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.three,
-    borderRadius: Radius.card,
-    borderWidth: 1.5,
-    borderColor: Colors.border,
+    borderRadius: Radius.card + 4,
+    borderWidth: 2,
+    borderColor: Colors.surface,
     backgroundColor: Colors.surface,
-    padding: Spacing.three,
-    ...Shadow,
+    overflow: 'hidden',
+    ...ShadowLifted,
   },
-  choiceActive: {
-    borderColor: Colors.primary,
-    backgroundColor: Colors.primarySoft,
-  },
-  choicePressed: { backgroundColor: Colors.surfaceAlt },
-  choiceText: { flex: 1, minWidth: 0, gap: 2 },
-  iconBox: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: Colors.primarySoft,
+  choiceActive: { borderColor: Colors.primary },
+  photoBox: { height: 132, backgroundColor: Colors.surfaceAlt },
+  check: {
+    position: 'absolute',
+    top: Spacing.three,
+    right: Spacing.three,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: Colors.primary,
+    borderWidth: 2,
+    borderColor: Colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
-    flexShrink: 0,
   },
-  iconBoxActive: { backgroundColor: Colors.primary },
-  radio: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    borderWidth: 1.5,
-    borderColor: Colors.borderStrong,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  radioActive: { borderColor: Colors.primary },
-  radioDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: Colors.primary },
+  choiceText: { gap: 2, paddingHorizontal: Spacing.three, paddingTop: 14, paddingBottom: Spacing.three },
 });

@@ -4,7 +4,8 @@ import { ActivityIndicator, Platform, Pressable, StyleSheet, View, type Pressabl
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { ThemedText } from '@/components/themed-text';
 
-type Variant = 'primary' | 'secondary' | 'ghost';
+/** `glass` is the translucent variant for use on photos and dark surfaces. */
+type Variant = 'primary' | 'secondary' | 'ghost' | 'glass';
 
 export type ButtonProps = Omit<PressableProps, 'children'> & {
   title: string;
@@ -44,13 +45,13 @@ export function Button({
         styles.base,
         styles[variant],
         size === 'lg' ? styles.lg : styles.md,
-        pressed && !isDisabled && (variant === 'primary' ? styles.pressedPrimary : styles.pressed),
+        pressed && !isDisabled && pressedStyle[variant],
         isDisabled && styles.disabled,
         style as object,
       ]}
       {...rest}>
       {loading ? (
-        <ActivityIndicator color={variant === 'primary' ? Colors.onPrimary : Colors.primary} />
+        <ActivityIndicator color={variant === 'primary' || variant === 'glass' ? Colors.onPrimary : Colors.primary} />
       ) : (
         <View style={styles.content}>
           {icon}
@@ -58,7 +59,11 @@ export function Button({
             type="subtitle"
             numberOfLines={1}
             maxFontSizeMultiplier={1.3}
-            style={[styles.label, size === 'md' && styles.labelMd, variant === 'primary' && styles.labelPrimary]}>
+            style={[
+              styles.label,
+              size === 'md' && styles.labelMd,
+              (variant === 'primary' || variant === 'glass') && styles.labelPrimary,
+            ]}>
             {title}
           </ThemedText>
           {accessoryRight}
@@ -112,11 +117,19 @@ const styles = StyleSheet.create({
   ghost: {
     backgroundColor: 'transparent',
   },
+  glass: {
+    backgroundColor: Colors.glass,
+    borderWidth: 1,
+    borderColor: Colors.glassBorder,
+  },
   pressed: {
     backgroundColor: Colors.surfaceAlt,
   },
   pressedPrimary: {
     backgroundColor: Colors.primaryPressed,
+  },
+  pressedGlass: {
+    backgroundColor: 'rgba(255, 255, 255, 0.26)',
   },
   disabled: {
     opacity: 0.4,
@@ -141,3 +154,10 @@ const styles = StyleSheet.create({
     color: Colors.onPrimary,
   },
 });
+
+const pressedStyle: Record<Variant, object> = {
+  primary: styles.pressedPrimary,
+  secondary: styles.pressed,
+  ghost: styles.pressed,
+  glass: styles.pressedGlass,
+};

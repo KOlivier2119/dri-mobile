@@ -1,9 +1,21 @@
 import { Redirect, router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
+import Animated, {
+  Easing,
+  FadeInDown,
+  interpolateColor,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 
-import { Colors, Fonts, Radius, Shadow, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Radius, Shadow, ShadowLifted, Spacing } from '@/constants/theme';
+import { Photos } from '@/constants/images';
+import { Photo, Scrim } from '@/components/ui/photo';
+import { PulseDot } from '@/components/ui/pulse-dot';
 import { ThemedText } from '@/components/themed-text';
 import { Button, ChevronRight } from '@/components/ui/button';
 import { FormError, errorMessage } from '@/components/ui/form-error';
@@ -82,41 +94,42 @@ export default function DriverHome() {
 
   return (
     <Screen contentStyle={styles.content}>
-      <View style={styles.header}>
-        <View style={styles.headerText}>
-          <ThemedText type="label" numberOfLines={1}>
+      <Animated.View entering={FadeInDown.duration(420)} style={styles.hero}>
+        <Photo source={online ? Photos.kigaliNightWide : Photos.wheelWide} priority="high" />
+        <Scrim
+          stops={[
+            [0, 0.5],
+            [0.4, 0.15],
+            [1, 0.9],
+          ]}
+        />
+        <View style={styles.heroTop}>
+          <ThemedText type="label" color={Colors.onNightDim} numberOfLines={1} style={{ flex: 1 }}>
             {firstName ? t('hub.hi', { name: firstName }) : t('hub.driver')}
           </ThemedText>
-          <ThemedText type="title" style={styles.greeting}>
-            {online ? t('hub.online') : t('hub.offline')}
-          </ThemedText>
+          <Pressable
+            onPress={() => router.push('/account')}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.yourAccount')}
+            style={({ pressed }) => [styles.avatar, pressed && { opacity: 0.85 }]}>
+            <ThemedText style={styles.avatarText}>{(firstName?.[0] ?? '·').toUpperCase()}</ThemedText>
+          </Pressable>
         </View>
-        <Pressable
-          onPress={() => router.push('/account')}
-          accessibilityRole="button"
-          accessibilityLabel={t('common.yourAccount')}
-          style={({ pressed }) => [styles.avatar, pressed && { opacity: 0.85 }]}>
-          <ThemedText style={styles.avatarText}>{(firstName?.[0] ?? '·').toUpperCase()}</ThemedText>
-        </Pressable>
-      </View>
-
-      <View style={[styles.card, styles.availability]}>
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <ThemedText type="small">{t('hub.available')}</ThemedText>
-          <ThemedText type="label">
-            {online ? t('hub.availableOn') : t('hub.availableOff')}
-          </ThemedText>
+        <View style={styles.heroBottom}>
+          <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+            <View style={styles.statusRow}>
+              <PulseDot size={10} active={online} />
+              <ThemedText type="title" style={styles.greeting}>
+                {online ? t('hub.online') : t('hub.offline')}
+              </ThemedText>
+            </View>
+            <ThemedText type="label" color={Colors.onNightDim}>
+              {online ? t('hub.availableOn') : t('hub.availableOff')}
+            </ThemedText>
+          </View>
+          <Switch on={online} onToggle={() => setOnline((v) => !v)} label={t('hub.available')} />
         </View>
-        <Pressable
-          onPress={() => setOnline((v) => !v)}
-          accessibilityRole="switch"
-          accessibilityState={{ checked: online }}
-          accessibilityLabel={t('hub.available')}
-          hitSlop={8}
-          style={[styles.switch, online ? styles.switchOn : styles.switchOff]}>
-          <View style={[styles.knob, online && styles.knobOn]} />
-        </Pressable>
-      </View>
+      </Animated.View>
 
       {activeTrip ? (
         <Pressable
@@ -153,6 +166,7 @@ export default function DriverHome() {
               </View>
               <Countdown until={offer.expiresAt} />
             </View>
+            <OfferTimer until={offer.expiresAt} />
             <View style={styles.stop}>
               <PinIcon size={20} color={Colors.primary} />
               <View style={{ flex: 1, minWidth: 0 }}>
@@ -186,7 +200,9 @@ export default function DriverHome() {
         ))
       ) : !activeTrip ? (
         <View style={[styles.card, styles.waiting]}>
-          <View style={[styles.pulse, !online && styles.pulseOff]} />
+          <View style={[styles.waitIcon, !online && styles.waitIconOff]}>
+            <PulseDot size={12} active={online} color={Colors.primary} />
+          </View>
           <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
             <ThemedText type="subtitle" style={{ fontSize: 17, lineHeight: 22 }}>
               {online ? t('hub.waiting') : t('hub.goOnline')}
@@ -203,6 +219,54 @@ export default function DriverHome() {
     </Screen>
   );
 }
+
+/** The availability switch: the knob springs across and the track fills green. */
+function Switch({ on, onToggle, label }: { on: boolean; onToggle: () => void; label: string }) {
+  const x = useSharedValue(on ? 1 : 0);
+  useEffect(() => {
+    x.value = withSpring(on ? 1 : 0, { damping: 16, stiffness: 220 });
+  }, [on, x]);
+  const knob = useAnimatedStyle(() => ({ transform: [{ translateX: x.value * 26 }] }));
+  const track = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(x.value, [0, 1], ['rgba(255,255,255,0.28)', Colors.primaryBright]),
+  }));
+  return (
+    <Pressable
+      onPress={() => {
+        if (Platform.OS !== 'web') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        onToggle();
+      }}
+      accessibilityRole="switch"
+      accessibilityState={{ checked: on }}
+      accessibilityLabel={label}
+      hitSlop={8}>
+      <Animated.View style={[styles.switch, track]}>
+        <Animated.View style={[styles.knob, knob]} />
+      </Animated.View>
+    </Pressable>
+  );
+}
+
+/** Thin bar draining as an offer's ~30 seconds run out. */
+function OfferTimer({ until }: { until: string }) {
+  const left = useSharedValue(1);
+  useEffect(() => {
+    const ms = Math.max(0, new Date(until).getTime() - Date.now());
+    left.value = Math.min(1, ms / OFFER_MS);
+    left.value = withTiming(0, { duration: ms, easing: Easing.linear });
+  }, [until, left]);
+  const style = useAnimatedStyle(() => ({
+    width: `${left.value * 100}%`,
+    backgroundColor: left.value < 0.33 ? Colors.danger : Colors.primary,
+  }));
+  return (
+    <View style={styles.timer}>
+      <Animated.View style={[styles.timerFill, style]} />
+    </View>
+  );
+}
+
+const OFFER_MS = 30_000;
 
 /** Seconds left on an offer; it disappears on its own when the server expires it. */
 function Countdown({ until }: { until: string }) {
@@ -235,30 +299,35 @@ function tripLabelKey(status: string): MessageKey {
 
 const styles = StyleSheet.create({
   content: { gap: Spacing.three },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  hero: {
+    height: 232,
+    borderRadius: Radius.card + 4,
+    overflow: 'hidden',
+    backgroundColor: Colors.night,
     justifyContent: 'space-between',
-    paddingBottom: Spacing.two,
+    padding: Spacing.three,
+    ...ShadowLifted,
   },
-  headerText: { flex: 1, minWidth: 0, paddingRight: Spacing.three },
-  greeting: { fontSize: 28, lineHeight: 34 },
+  heroTop: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
+  heroBottom: { flexDirection: 'row', alignItems: 'flex-end', gap: Spacing.three },
+  statusRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two + 2 },
+  greeting: { fontSize: 28, lineHeight: 34, color: Colors.onNight },
   avatar: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    backgroundColor: Colors.primarySoft,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: Colors.glass,
+    borderWidth: 1,
+    borderColor: Colors.glassBorder,
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
   },
-  avatarText: { fontFamily: Fonts.bold, fontSize: 17, color: Colors.primary },
-  availability: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
-  switch: { width: 56, height: 32, borderRadius: 16, padding: 3, justifyContent: 'center', flexShrink: 0 },
-  switchOn: { backgroundColor: Colors.primary },
-  switchOff: { backgroundColor: Colors.borderStrong },
+  avatarText: { fontFamily: Fonts.bold, fontSize: 16, color: Colors.onNight },
+  switch: { width: 58, height: 32, borderRadius: 16, padding: 3, justifyContent: 'center' },
   knob: { width: 26, height: 26, borderRadius: 13, backgroundColor: Colors.surface },
-  knobOn: { alignSelf: 'flex-end' },
+  timer: { height: 4, borderRadius: 2, backgroundColor: Colors.surfaceAlt, overflow: 'hidden', marginTop: -Spacing.one },
+  timerFill: { height: 4, borderRadius: 2 },
   card: {
     borderRadius: Radius.card,
     borderWidth: 1,
@@ -277,15 +346,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   waiting: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
-  pulse: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: Colors.primary,
-    borderWidth: 5,
-    borderColor: Colors.primaryTint,
+  waitIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: Colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  pulseOff: { backgroundColor: Colors.borderStrong, borderColor: Colors.surfaceAlt },
+  waitIconOff: { backgroundColor: Colors.surfaceAlt },
   offerCard: {
     gap: Spacing.three,
     borderRadius: Radius.card,

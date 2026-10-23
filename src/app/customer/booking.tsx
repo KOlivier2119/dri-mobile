@@ -10,13 +10,15 @@ import { FormError, errorMessage } from '@/components/ui/form-error';
 import { Screen } from '@/components/ui/screen';
 import { MomoSheet } from '@/components/momo-sheet';
 import { DriverRow } from '@/components/driver-row';
-import { CheckIcon } from '@/components/onboarding/illustrations';
+import { BookingHero } from '@/components/booking/booking-hero';
+import { TripTimeline } from '@/components/booking/trip-timeline';
+import { WhileYouWait } from '@/components/booking/while-you-wait';
 import { Bookings, Payments, Trips } from '@/api/endpoints';
 import { useLiveRefresh } from '@/api/realtime';
 import type { Booking, Payment, PickupCode } from '@/api/types';
 import { useRemote } from '@/hooks/use-remote';
 import { useSession } from '@/store/session';
-import { bookingProgress, bookingStatusKey, isActiveBooking } from '@/utils/booking';
+import { bookingStatusKey, isActiveBooking } from '@/utils/booking';
 import { useI18n, type MessageKey } from '@/i18n';
 
 const BOOKING_EVENTS = ['booking.status_changed', 'booking.driver_assigned'];
@@ -135,13 +137,11 @@ export default function BookingScreen() {
   ) : undefined;
 
   return (
-    <Screen centered onBack={home} footer={footer}>
-      <Animated.View entering={FadeInDown.duration(420)} style={styles.hero}>
-        {paid ? (
-          <View style={styles.doneBadge}>
-            <CheckIcon size={28} color={Colors.onPrimary} strokeWidth={2.4} />
-          </View>
-        ) : null}
+    <Screen onBack={home} footer={footer}>
+      <Animated.View entering={FadeInDown.duration(420)}>
+        <BookingHero booking={b} />
+      </Animated.View>
+      <Animated.View entering={FadeInDown.delay(80).duration(420)} style={styles.hero}>
         <ThemedText type="title">{t(headlineKey(b))}</ThemedText>
         <ThemedText type="body" color={Colors.textDim}>
           {subline(b, t, departure)}
@@ -178,11 +178,6 @@ export default function BookingScreen() {
 
         {b.status === 'DRIVER_ASSIGNED' || paid ? (
           <DriverRow driver={b.driver} plate={b.vehiclePlate} callable={b.status === 'DRIVER_ASSIGNED' && !payDue} />
-        ) : b.status === 'SEARCHING' ? (
-          <View style={styles.searching}>
-            <View style={styles.pulse} />
-            <ThemedText type="caption">{t('booking.lookingForDrivers')}</ThemedText>
-          </View>
         ) : null}
 
         <View style={styles.route}>
@@ -206,11 +201,7 @@ export default function BookingScreen() {
           ) : null}
         </View>
 
-        {open ? (
-          <View style={styles.track}>
-            <View style={[styles.trackFill, { width: bookingProgress(b) }]} />
-          </View>
-        ) : null}
+        {open || paid ? <TripTimeline booking={b} /> : null}
 
         <View style={styles.divider} />
 
@@ -221,6 +212,8 @@ export default function BookingScreen() {
       </View>
 
       <FormError message={error} />
+
+      {open && !payDue ? <WhileYouWait booking={b} /> : null}
 
       <MomoSheet
         visible={payOpen}
@@ -312,15 +305,6 @@ function subline(b: Booking, t: Translate, departure: (d: Date | null) => string
 
 const styles = StyleSheet.create({
   hero: { gap: Spacing.two },
-  doneBadge: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: Colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.two,
-  },
   codeCard: {
     alignItems: 'center',
     gap: Spacing.one,
@@ -339,18 +323,7 @@ const styles = StyleSheet.create({
     ...Shadow,
   },
   cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: Spacing.two },
-  searching: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, minHeight: 46 },
-  pulse: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: Colors.primary,
-    borderWidth: 5,
-    borderColor: Colors.primaryTint,
-  },
   route: { gap: 2 },
-  track: { height: 4, borderRadius: 2, backgroundColor: Colors.surfaceAlt, overflow: 'hidden' },
-  trackFill: { height: 4, borderRadius: 2, backgroundColor: Colors.primary },
   divider: { height: 1, backgroundColor: Colors.border },
   priceRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
 });

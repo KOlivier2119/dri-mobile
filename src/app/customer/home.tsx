@@ -1,15 +1,17 @@
 import { Redirect, router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Colors, Fonts, MaxContentWidth, Radius, Shadow, Spacing } from '@/constants/theme';
 import { ThemedText } from '@/components/themed-text';
 import { Button, ChevronRight } from '@/components/ui/button';
-import { ServiceTile } from '@/components/ui/service-tile';
+import { ServiceCards } from '@/components/ui/service-card';
+import { PulseDot } from '@/components/ui/pulse-dot';
 import { DriversMap } from '@/components/map/drivers-map';
 import { PlacePicker } from '@/components/place-picker';
-import { MoonIcon, PinIcon, WheelIcon } from '@/components/onboarding/illustrations';
+import { CarIcon, CheckIcon, PinIcon } from '@/components/onboarding/illustrations';
 import { DriverRow } from '@/components/driver-row';
 import { Bookings } from '@/api/endpoints';
 import { useLiveRefresh } from '@/api/realtime';
@@ -86,7 +88,7 @@ export default function CustomerHome() {
 
       {nearby.supported ? (
         <View style={[styles.nearbyPill, { top: mapHeight - 44, left: gutter }]} accessibilityLiveRegion="polite">
-          <View style={[styles.liveDot, nearby.drivers.length === 0 && { backgroundColor: Colors.borderStrong }]} />
+          <PulseDot active={nearby.drivers.length > 0} />
           <ThemedText type="label" color={Colors.text}>
             {nearby.drivers.length === 0
               ? t('home.noneNearby')
@@ -153,22 +155,12 @@ export default function CustomerHome() {
             </ThemedText>
           </Pressable>
 
-          <View style={styles.services} accessibilityRole="radiogroup">
-            <ServiceTile
-              active={service === 'BOB_NIGHT'}
-              onPress={() => setService('BOB_NIGHT')}
-              icon={(color) => <MoonIcon size={22} color={color} />}
-              title={t('services.BOB_NIGHT')}
-              copy={t('services.bobNightCopy')}
-            />
-            <ServiceTile
-              active={service === 'PRIVATE_DRIVER'}
-              onPress={() => setService('PRIVATE_DRIVER')}
-              icon={(color) => <WheelIcon size={22} color={color} />}
-              title={t('services.PRIVATE_DRIVER')}
-              copy={t('services.privateDriverCopy')}
-            />
-          </View>
+          <Animated.View entering={FadeInDown.delay(80).duration(450)} style={styles.section}>
+            <ThemedText type="overline" style={styles.overline}>
+              {t('discover.servicesTitle')}
+            </ThemedText>
+            <ServiceCards value={service} onChange={setService} />
+          </Animated.View>
 
           <Button
             title={t('home.request')}
@@ -179,6 +171,13 @@ export default function CustomerHome() {
           <ThemedText type="label" style={styles.center}>
             {activeId ? t('home.hintActive') : t('home.hint')}
           </ThemedText>
+
+          <Animated.View entering={FadeInDown.delay(200).duration(450)} style={styles.section}>
+            <ThemedText type="overline" style={styles.overline}>
+              {t('discover.howTitle')}
+            </ThemedText>
+            <HowItWorks gutter={gutter} />
+          </Animated.View>
         </ScrollView>
       </View>
 
@@ -195,6 +194,41 @@ export default function CustomerHome() {
     </View>
   );
 }
+
+/** Three swipeable steps: book, meet at your car, ride. */
+function HowItWorks({ gutter }: { gutter: number }) {
+  const { t } = useI18n();
+  const steps = [
+    { title: t('discover.book'), copy: t('discover.bookCopy'), icon: <PinIcon size={20} color={Colors.primary} /> },
+    { title: t('discover.meet'), copy: t('discover.meetCopy'), icon: <CarIcon size={20} color={Colors.primary} /> },
+    { title: t('discover.ride'), copy: t('discover.rideCopy'), icon: <CheckIcon size={20} color={Colors.primary} strokeWidth={2.4} /> },
+  ];
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      snapToInterval={STEP_WIDTH + Spacing.two}
+      decelerationRate="fast"
+      // bleeds to the screen edges so cards slide out from under the gutter
+      contentContainerStyle={[styles.steps, { paddingHorizontal: gutter }]}
+      style={{ marginHorizontal: -gutter }}>
+      {steps.map((s, i) => (
+        <View key={s.title} style={styles.step}>
+          <View style={styles.stepTop}>
+            <View style={styles.stepIcon}>{s.icon}</View>
+            <ThemedText style={styles.stepNo}>{`0${i + 1}`}</ThemedText>
+          </View>
+          <ThemedText type="subtitle" style={styles.stepTitle}>
+            {s.title}
+          </ThemedText>
+          <ThemedText type="caption">{s.copy}</ThemedText>
+        </View>
+      ))}
+    </ScrollView>
+  );
+}
+
+const STEP_WIDTH = 220;
 
 function greetingKey(): MessageKey {
   const h = new Date().getHours();
@@ -248,7 +282,29 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     ...Shadow,
   },
-  liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.primaryBright },
+  section: { gap: Spacing.two + 2 },
+  overline: { color: Colors.textFaint },
+  steps: { gap: Spacing.two },
+  step: {
+    width: STEP_WIDTH,
+    gap: Spacing.one,
+    borderRadius: Radius.card,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    padding: Spacing.three,
+  },
+  stepTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.two },
+  stepIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: Colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepNo: { fontFamily: Fonts.bold, fontSize: 22, color: Colors.border },
+  stepTitle: { fontSize: 17 },
   sheet: {
     flex: 1,
     backgroundColor: Colors.bg,
@@ -275,7 +331,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     paddingHorizontal: Spacing.three,
   },
-  services: { flexDirection: 'row', gap: Spacing.two },
   center: { textAlign: 'center' },
   tripCard: {
     gap: Spacing.three,

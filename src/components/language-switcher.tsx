@@ -10,12 +10,15 @@ const SHORT: Record<Locale, string> = { rw: 'RW', en: 'EN', fr: 'FR' };
  * Language choice. `compact` is the RW · EN · FR pill for the top of the intro
  * and sign-up screens; the full variant lists each language by its own name.
  */
-export function LanguageSwitcher({ compact = false }: { compact?: boolean }) {
+export function LanguageSwitcher({ compact = false, onPhoto = false }: { compact?: boolean; onPhoto?: boolean }) {
   const { locale, setLocale, t } = useI18n();
 
   if (compact) {
     return (
-      <View style={styles.pill} accessibilityRole="radiogroup" accessibilityLabel={t('language.change')}>
+      <View
+        style={[styles.pill, onPhoto && styles.pillOnPhoto]}
+        accessibilityRole="radiogroup"
+        accessibilityLabel={t('language.change')}>
         {LOCALES.map((l) => {
           const on = l === locale;
           return (
@@ -27,7 +30,9 @@ export function LanguageSwitcher({ compact = false }: { compact?: boolean }) {
               accessibilityLabel={LOCALE_NAMES[l]}
               hitSlop={4}
               style={[styles.pillOption, on && styles.pillOptionOn]}>
-              <ThemedText style={[styles.pillText, on && styles.pillTextOn]}>{SHORT[l]}</ThemedText>
+              <ThemedText style={[styles.pillText, onPhoto && styles.pillTextOnPhoto, on && styles.pillTextOn]}>
+                {SHORT[l]}
+              </ThemedText>
             </Pressable>
           );
         })}
@@ -74,8 +79,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  pillOnPhoto: { backgroundColor: Colors.glass, borderWidth: 1, borderColor: Colors.glassBorder },
   pillOptionOn: { backgroundColor: Colors.surface },
   pillText: { fontFamily: Fonts.semibold, fontSize: 12, lineHeight: 16, letterSpacing: 0.6, color: Colors.textDim },
+  pillTextOnPhoto: { color: Colors.onNightDim },
   pillTextOn: { color: Colors.primary },
   list: {
     borderRadius: Radius.card,

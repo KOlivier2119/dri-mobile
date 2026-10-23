@@ -1,5 +1,5 @@
 import type { Booking } from '@/api/types';
-import { bookingProgress, bookingStatusKey, isActiveBooking } from '@/utils/booking';
+import { BOOKING_STEPS, bookingProgress, bookingStatusKey, bookingStep, isActiveBooking } from '@/utils/booking';
 
 const base = { status: 'DRIVER_ASSIGNED', tripStatus: 'NOT_STARTED' } as Booking;
 
@@ -24,5 +24,18 @@ describe('booking presentation', () => {
   it('advances the progress bar through the trip', () => {
     expect(bookingProgress({ ...base, status: 'SEARCHING' })).toBe('12%');
     expect(bookingProgress({ ...base, tripStatus: 'IN_PROGRESS' })).toBe('78%');
+  });
+
+  it('places the booking on the timeline', () => {
+    const step = (b: Pick<Booking, 'status' | 'tripStatus'>) => BOOKING_STEPS[bookingStep(b)];
+    expect(step({ status: 'SEARCHING', tripStatus: null })).toBe('requested');
+    expect(step({ status: 'SCHEDULED', tripStatus: null })).toBe('requested');
+    expect(step(base)).toBe('matched');
+    expect(step({ ...base, tripStatus: 'DRIVER_EN_ROUTE' })).toBe('onTheWay');
+    expect(step({ ...base, tripStatus: 'ARRIVED' })).toBe('arrived');
+    expect(step({ ...base, tripStatus: 'IN_PROGRESS' })).toBe('onTrip');
+    // trip over but unpaid still reads as done on the timeline
+    expect(step({ ...base, tripStatus: 'COMPLETED' })).toBe('done');
+    expect(step({ ...base, status: 'COMPLETED' })).toBe('done');
   });
 });
