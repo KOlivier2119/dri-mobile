@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#17A877"/>
+      <stop offset="0.55" stop-color="#0B7A57"/>
+      <stop offset="1" stop-color="#065A40"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.22" cy="0.18" r="0.75">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <rect width="1024" height="1024" fill="url(#glow)"/>
+
+  <defs>
+    <linearGradient id="road" x1="0.2" y1="0.8" x2="0.8" y2="0.2" gradientUnits="objectBoundingBox">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#DDF8EC"/>
+    </linearGradient>
+    <filter id="soft" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="2.2"/>
+    </filter>
+  </defs>
+  <g transform="translate(77.40 126.60) scale(8.2)">
+    <g transform="translate(0 2.4)" opacity="0.28" filter="url(#soft)">
+      <path d="M24 76 C36 76 40 67 44 56 S48 47 51 47 S57 43 61 35 S64 31 67.6 30" stroke="#033826" stroke-width="10.5" stroke-linecap="round" fill="none"/>
+      <circle cx="76" cy="24" r="11.5" stroke="#033826" stroke-width="6" fill="none"/>
+      <circle cx="76" cy="24" r="3.6" fill="#033826"/>
+      <circle cx="24" cy="76" r="8.5" fill="#033826"/>
+    </g>
+    <path d="M24 76 C36 76 40 67 44 56 S48 47 51 47 S57 43 61 35 S64 31 67.6 30" stroke="url(#road)" stroke-width="10.5" stroke-linecap="round" fill="none"/>
+    <circle cx="76" cy="24" r="11.5" stroke="#A6EFCF" stroke-width="6" fill="none"/>
+    <circle cx="76" cy="24" r="3.6" fill="#A6EFCF"/>
+    <circle cx="24" cy="76" r="8.5" fill="#FFFFFF"/>
+  </g>
+</svg>

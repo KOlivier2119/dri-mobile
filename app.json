@@ -6,19 +6,25 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "drimobile",
-    "userInterfaceStyle": "dark",
-    "backgroundColor": "#111713",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#F6F5F0",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/images/icon.png",
+      "bundleIdentifier": "rw.dri.app",
+      "supportsTablet": false,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#111713",
+        "backgroundColor": "#0B7A57",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "rw.dri.app"
     },
     "web": {
       "output": "static",
@@ -29,13 +35,36 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#111713",
+          "backgroundColor": "#F6F5F0",
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 96,
-          "dark": {
-            "backgroundColor": "#111713",
-            "image": "./assets/images/splash-icon.png",
-            "imageWidth": 96
+          "imageWidth": 96
+        }
+      ],
+      "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "DRI uses your location to set your pick-up point and, for drivers, to receive nearby trip requests."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "DRI needs your photos to attach your ID, driving licence and profile photo to your driver application.",
+          "cameraPermission": "DRI uses the camera to photograph your ID, driving licence and profile photo for your driver application."
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "buildArchs": [
+              "armeabi-v7a",
+              "arm64-v8a"
+            ],
+            "enableMinifyInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true,
+            "useLegacyPackaging": true
           }
         }
       ]
@@ -43,6 +72,14 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "googleMapsAndroid": false,
+      "router": {},
+      "eas": {
+        "projectId": "8607cd76-d59d-49eb-8567-cb69ea74f455"
+      }
+    },
+    "owner": "kfetch"
   }
 }
