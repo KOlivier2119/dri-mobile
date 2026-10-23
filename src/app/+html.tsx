@@ -31,9 +31,11 @@ export default function Root({ children }: PropsWithChildren) {
   );
 }
 
-// Paper background behind the app (also shown during iOS overscroll), and no
-// grey flash when tapping on iOS.
+// Paper background behind the app (also shown during iOS overscroll), no grey
+// flash when tapping on iOS, and no browser focus outline on inputs: fields
+// draw their own green focus border.
 const pageStyles = `
 html, body { background-color: #F6F5F0; }
 * { -webkit-tap-highlight-color: transparent; }
+input, textarea, select { outline: none !important; }
 `;
