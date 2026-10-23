@@ -32,10 +32,18 @@ export default function Root({ children }: PropsWithChildren) {
 }
 
 // Paper background behind the app (also shown during iOS overscroll), no grey
-// flash when tapping on iOS, and no browser focus outline on inputs: fields
-// draw their own green focus border.
+// flash when tapping on iOS, and no browser focus outline: fields draw their
+// own green focus border. Safari's native input styling is reset too. Mouse
+// and touch focus never draw a ring; keyboard focus keeps one on desktop.
 const pageStyles = `
 html, body { background-color: #F6F5F0; }
 * { -webkit-tap-highlight-color: transparent; }
-input, textarea, select { outline: none !important; }
+input, textarea, select {
+  outline: none !important;
+  box-shadow: none !important;
+  -webkit-appearance: none;
+  appearance: none;
+}
+*:focus:not(:focus-visible) { outline: none !important; }
+@media (hover: none) { *:focus { outline: none !important; } }
 `;
