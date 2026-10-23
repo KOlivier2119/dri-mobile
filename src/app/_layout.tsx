@@ -4,6 +4,7 @@ import { ThemeProvider, DefaultTheme, Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
+import { NavigationBar } from 'expo-navigation-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { SplashOverlay } from '@/components/brand/splash-overlay';
@@ -55,6 +56,7 @@ function Shell() {
     <ThemeProvider value={theme}>
       <PageTitle title="DRI" />
       <StatusBar style="dark" />
+      <NavigationBar style="dark" />
       {/* screens guard on the session, so mounting them before it loads would redirect deep links away */}
       {session.hydrated ? (
         <Stack

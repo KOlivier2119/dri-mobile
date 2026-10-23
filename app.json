@@ -67,6 +67,13 @@
             "useLegacyPackaging": true
           }
         }
+      ],
+      [
+        "expo-navigation-bar",
+        {
+          "enforceContrast": false,
+          "style": "dark"
+        }
       ]
     ],
     "experiments": {

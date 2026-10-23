@@ -1,30 +1,32 @@
+import { useId } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import Svg, { Circle, Defs, LinearGradient, Path, Stop } from 'react-native-svg';
+import Svg, { Circle, Defs, Mask, Path, Rect } from 'react-native-svg';
 
 import { Colors, Fonts } from '@/constants/theme';
 
-type Props = { size?: number };
+type Props = { size?: number; color?: string };
 
-/** The DRI route mark: an origin dot, a winding route and the destination ring. */
-export function BrandMark({ size = 96 }: Props) {
+/**
+ * The DRI glyph: a location pin (a driver comes to you) with a steering wheel
+ * cut out of it. One solid shape, so it holds up from app icon down to 16px.
+ * Source artwork: assets/brand/dri-mark.svg.
+ */
+export function BrandMark({ size = 96, color = Colors.primary }: Props) {
+  // mask ids are document-global on web
+  const id = `dri-wheel-${useId().replace(/:/g, '')}`;
   return (
     <View style={{ width: size, height: size }} accessibilityElementsHidden>
       <Svg width={size} height={size} viewBox="0 0 100 100">
         <Defs>
-          <LinearGradient id="dri-route" x1="0.2" y1="0.8" x2="0.8" y2="0.2">
-            <Stop offset="0" stopColor={Colors.primary} />
-            <Stop offset="1" stopColor={Colors.primaryBright} />
-          </LinearGradient>
+          <Mask id={id} maskUnits="userSpaceOnUse" x="0" y="0" width="100" height="100">
+            <Path d="M50 93 C46 88.5 17 66 17 41 A33 33 0 0 1 83 41 C83 66 54 88.5 50 93 Z" fill="#fff" />
+            <Circle cx={50} cy={41} r={18} fill="none" stroke="#000" strokeWidth={6.2} />
+            <Circle cx={50} cy={41} r={7.4} fill="#000" />
+            <Rect x={32} y={37.9} width={36} height={6.2} rx={0.6} fill="#000" />
+            <Rect x={46.9} y={41} width={6.2} height={18} rx={0.6} fill="#000" />
+          </Mask>
         </Defs>
-        <Path
-          d="M24 76 C36 76 40 67 44 56 S48 47 51 47 S57 43 61 33 S68 24 76 24"
-          stroke="url(#dri-route)"
-          strokeWidth={8}
-          strokeLinecap="round"
-          fill="none"
-        />
-        <Circle cx={76} cy={24} r={11} stroke={Colors.primaryBright} strokeWidth={4.5} fill="none" />
-        <Circle cx={24} cy={76} r={6.5} fill={Colors.text} />
+        <Rect width={100} height={100} fill={color} mask={`url(#${id})`} />
       </Svg>
     </View>
   );
