@@ -1,485 +1,390 @@
-import { router } from 'expo-router';
-import { useState } from 'react';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Redirect, router } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Colors, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { ThemedText } from '@/components/themed-text';
 import { Button, ChevronRight } from '@/components/ui/button';
+import { FormError, errorMessage } from '@/components/ui/form-error';
+import { BackButton, Screen } from '@/components/ui/screen';
+import { Segmented } from '@/components/ui/segmented';
 import { TextField } from '@/components/ui/text-field';
 import { DocUploadField } from '@/components/ui/doc-upload';
-import { WheelIcon } from '@/components/onboarding/illustrations';
-import { MOCK, mockDelay, useSession } from '@/store/session';
-import { formatLocal, normalizeDigits } from '@/utils/phone';
+import { CheckIcon } from '@/components/onboarding/illustrations';
+import { Drivers } from '@/api/endpoints';
+import type { DocType, DriverApplication } from '@/api/types';
+import { useLayout } from '@/hooks/use-layout';
+import { useSession } from '@/store/session';
+import { useI18n, type MessageKey } from '@/i18n';
+
+/**
+ * Driver onboarding: POST /drivers/applications (fields mirror the backend
+ * `applicationFormSchema`), then each required document is uploaded to that
+ * application. The fee and admin review follow. This never grants the DRIVER
+ * role — only an admin approval does.
+ */
+
+const REGISTRATION_FEE_RWF = 5000;
+/** Sent to the API by these canonical names; only the chip labels are translated. */
+const LANGUAGE_OPTIONS = ['Kinyarwanda', 'English', 'French', 'Swahili'] as const;
+const REQUIRED_DOCS: DocType[] = ['NATIONAL_ID', 'DRIVERS_LICENSE', 'PROFILE_PHOTO'];
 
 type Form = {
-  firstName: string;
-  lastName: string;
-  dob: string;
-  email: string;
-  altPhone: string;
-  city: string;
-  nationalId: string;
-  license: string;
+  legalName: string;
+  licenseNumber: string;
+  nationalIdNumber: string;
   licenseExpiry: string;
-  vehicle: string;
-  plate: string;
-  idDoc: boolean;
-  licenseDoc: boolean;
+  yearsDriving: string;
+  languages: string[];
+  addressNote: string;
+  gearbox: 'MANUAL' | 'AUTOMATIC' | null;
   agree: boolean;
 };
 
-const EMPTY: Form = {
-  firstName: '', lastName: '', dob: '',
-  email: '', altPhone: '', city: '',
-  nationalId: '',
-  license: '', licenseExpiry: '', vehicle: '', plate: '',
-  idDoc: false, licenseDoc: false, agree: false,
-};
-
-const STEPS = [
-  {
-    key: 'personal',
-    title: 'Personal information',
-    why: 'So drivers and clients know who is behind the wheel.',
-  },
-  {
-    key: 'contact',
-    title: 'Contact details',
-    why: 'Where to reach you about trip requests.',
-  },
-  {
-    key: 'identity',
-    title: 'Identity information',
-    why: 'Required by Rwandan transport rules for professional drivers.',
-  },
-  {
-    key: 'license',
-    title: 'Driving licence',
-    why: 'We drive clients in their cars — the licence is the heart of the application.',
-  },
-  {
-    key: 'documents',
-    title: 'Documents',
-    why: 'Photos of the originals. For this demo nothing is uploaded for real.',
-  },
-  { key: 'review', title: 'Review application', why: 'Check everything before sending.' },
-];
-
 const onlyDigits = (v: string, max: number) => v.replace(/\D/g, '').slice(0, max);
 
-/** Valid demo values so a tester can walk the whole flow quickly. */
-const DEMO: Partial<Form> = {
-  firstName: 'Jean',
-  lastName: 'Mugisha',
-  dob: '12.03.1995',
-  email: 'jean.mugisha@example.com',
-  altPhone: '78 999 1122',
-  city: 'Kigali',
-  nationalId: '1199580000000001',
-  license: 'RWK1234567',
-  licenseExpiry: '01.01.2030',
-  vehicle: 'Toyota RAV4',
-  plate: 'RAD 123 A',
-  idDoc: true,
-  licenseDoc: true,
-  agree: true,
+const dotDate = (v: string) => {
+  const d = onlyDigits(v, 8);
+  return d.replace(/(\d{2})(\d{2})(\d{0,4})/, (_m, a, b, c) => [a, b, c].filter(Boolean).join('.'));
 };
 
-const STEP_KEYS: (keyof Form)[][] = [
-  ['firstName', 'lastName', 'dob'],
-  ['email', 'altPhone', 'city'],
-  ['nationalId'],
-  ['license', 'licenseExpiry', 'vehicle', 'plate'],
-  ['idDoc', 'licenseDoc'],
-  ['agree'],
-];
-
-export default function DriverApplyScreen() {
-  const { setDriverStatus } = useSession();
-  const [step, setStep] = useState(0);
-  const [form, setForm] = useState<Form>(EMPTY);
-  const [touched, setTouched] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-
-  const set = <K extends keyof Form>(key: K, value: Form[K]) =>
-    setForm((f) => ({ ...f, [key]: value }));
-
-  const autofill = () => {
-    const patch: Partial<Form> = {};
-    for (const key of STEP_KEYS[step]) {
-      if (DEMO[key] !== undefined) patch[key] = DEMO[key] as never;
-    }
-    setForm((f) => ({ ...f, ...patch }));
-    setTouched(false);
-  };
-
-  const errors = validateStep(step, form);
-  const valid = Object.keys(errors).length === 0;
-  const last = step === STEPS.length - 1;
-
-  const next = () => {
-    setTouched(true);
-    if (!valid) return;
-    setTouched(false);
-    if (last) return;
-    setStep((s) => s + 1);
-  };
-
-  const back = () => {
-    setTouched(false);
-    if (step === 0) router.back();
-    else setStep((s) => s - 1);
-  };
-
-  const submit = async () => {
-    if (submitting) return;
-    setSubmitting(true);
-    await mockDelay(MOCK.submitDelayMs);
-    await setDriverStatus('review');
-    router.replace('/driver/status');
-  };
-
-  const err = (k: keyof Form) => (touched ? errors[k] ?? null : null);
-
-  return (
-    <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View style={styles.header}>
-          <Pressable
-            onPress={back}
-            hitSlop={12}
-            accessibilityRole="button"
-            accessibilityLabel="Back"
-            style={styles.backBtn}>
-            <View style={styles.backChevron} />
-          </Pressable>
-          <View style={{ flex: 1, gap: Spacing.two }}>
-            <ThemedText type="label">
-              Step {step + 1} of {STEPS.length} — {STEPS[step].title}
-            </ThemedText>
-            <View style={styles.progressTrack}>
-              <View style={[styles.progressFill, { width: `${((step + 1) / STEPS.length) * 100}%` }]} />
-            </View>
-          </View>
-          <WheelIcon size={26} color={Colors.mint} />
-        </View>
-
-        <ScrollView
-          contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}>
-          <ThemedText type="title" style={styles.title}>
-            {STEPS[step].title}
-          </ThemedText>
-          <ThemedText type="body" color={Colors.warmDim} style={styles.why}>
-            {STEPS[step].why}
-          </ThemedText>
-
-          <Pressable
-            onPress={autofill}
-            accessibilityRole="button"
-            accessibilityLabel="Autofill demo data for this step"
-            style={({ pressed }) => [styles.fillChip, pressed && { opacity: 0.7 }]}>
-            <ThemedText type="small" color={Colors.mint}>
-              Autofill demo data
-            </ThemedText>
-          </Pressable>
-
-          {step === 0 && (
-            <>
-              <TextField label="First name" value={form.firstName} onChangeText={(v) => set('firstName', v)} autoCapitalize="words" autoComplete="given-name" error={err('firstName')} />
-              <TextField label="Last name" value={form.lastName} onChangeText={(v) => set('lastName', v)} autoCapitalize="words" autoComplete="family-name" error={err('lastName')} />
-              <TextField
-                label="Date of birth"
-                value={form.dob}
-                onChangeText={(v) => {
-                  const d = onlyDigits(v, 8);
-                  set('dob', d.replace(/(\d{2})(\d{2})(\d{0,4})/, (_m, a, b, c) => [a, b, c].filter(Boolean).join('.')));
-                }}
-                placeholder="DD.MM.YYYY"
-                keyboardType="number-pad"
-                error={err('dob')}
-              />
-            </>
-          )}
-
-          {step === 1 && (
-            <>
-              <TextField label="Email" value={form.email} onChangeText={(v) => set('email', v)} keyboardType="email-address" autoCapitalize="none" autoComplete="email" error={err('email')} />
-              <TextField
-                label="Alternate phone"
-                value={form.altPhone}
-                onChangeText={(text) => {
-                  const digits = normalizeDigits(text);
-                  const current = normalizeDigits(form.altPhone);
-                  set('altPhone', digits === current ? text : formatLocal(digits));
-                }}
-                keyboardType="phone-pad"
-                helper="Optional — a number we can reach you on besides your login."
-                error={err('altPhone')}
-              />
-              <TextField label="City" value={form.city} onChangeText={(v) => set('city', v)} autoCapitalize="words" error={err('city')} />
-            </>
-          )}
-
-          {step === 2 && (
-            <TextField
-              label="National ID number"
-              value={form.nationalId}
-              onChangeText={(v) => set('nationalId', onlyDigits(v, 16))}
-              keyboardType="number-pad"
-              helper="16 digits, as printed on your ID."
-              error={err('nationalId')}
-            />
-          )}
-
-          {step === 3 && (
-            <>
-              <TextField label="Licence number" value={form.license} onChangeText={(v) => set('license', v.toUpperCase().slice(0, 12))} autoCapitalize="characters" error={err('license')} />
-              <TextField
-                label="Licence expiry"
-                value={form.licenseExpiry}
-                onChangeText={(v) => {
-                  const d = onlyDigits(v, 8);
-                  set('licenseExpiry', d.replace(/(\d{2})(\d{2})(\d{0,4})/, (_m, a, b, c) => [a, b, c].filter(Boolean).join('.')));
-                }}
-                placeholder="DD.MM.YYYY"
-                keyboardType="number-pad"
-                error={err('licenseExpiry')}
-              />
-              <TextField label="Your vehicle make & model" value={form.vehicle} onChangeText={(v) => set('vehicle', v)} autoCapitalize="words" placeholder="Toyota RAV4" error={err('vehicle')} />
-              <TextField
-                label="Plate number"
-                value={form.plate}
-                onChangeText={(v) => set('plate', v.toUpperCase().slice(0, 10))}
-                autoCapitalize="characters"
-                placeholder="RAD 123 A"
-                error={err('plate')}
-              />
-            </>
-          )}
-
-          {step === 4 && (
-            <>
-              <DocUploadField
-                label="National ID (front)"
-                hint="Good light, all four corners visible"
-                fileName="national-id-front.jpg"
-                value={form.idDoc}
-                onChange={(v) => set('idDoc', v)}
-              />
-              <DocUploadField
-                label="Driving licence"
-                hint="No glare over the photo or numbers"
-                fileName="driving-licence.jpg"
-                value={form.licenseDoc}
-                onChange={(v) => set('licenseDoc', v)}
-                failOnce
-              />
-              {err('idDoc') || err('licenseDoc') ? (
-                <ThemedText type="small" color={Colors.danger}>{err('idDoc') ?? err('licenseDoc')}</ThemedText>
-              ) : null}
-            </>
-          )}
-
-          {step === 5 && (
-            <>
-              <View style={styles.reviewCard}>
-                <ReviewRow label="Name" value={`${form.firstName} ${form.lastName}`} onEdit={() => setStep(0)} />
-                <ReviewRow label="Date of birth" value={form.dob} onEdit={() => setStep(0)} />
-                <ReviewRow label="Email" value={form.email} onEdit={() => setStep(1)} />
-                <ReviewRow label="Phone" value={form.altPhone || '—'} onEdit={() => setStep(1)} />
-                <ReviewRow label="City" value={form.city} onEdit={() => setStep(1)} />
-                <ReviewRow label="National ID" value={form.nationalId} onEdit={() => setStep(2)} />
-                <ReviewRow label="Licence" value={`${form.license} · expires ${form.licenseExpiry}`} onEdit={() => setStep(3)} />
-                <ReviewRow label="Vehicle" value={`${form.vehicle} · ${form.plate}`} onEdit={() => setStep(3)} />
-                <ReviewRow label="Documents" value={form.idDoc && form.licenseDoc ? '2 attached (simulated)' : 'Missing'} onEdit={() => setStep(4)} />
-              </View>
-              <Pressable
-                onPress={() => set('agree', !form.agree)}
-                accessibilityRole="checkbox"
-                accessibilityState={{ checked: form.agree }}
-                style={styles.agreeRow}>
-                <View style={[styles.checkbox, form.agree && styles.checkboxOn]}>
-                  {form.agree ? <View style={styles.checkboxCheck} /> : null}
-                </View>
-                <ThemedText type="body" color={Colors.warmDim} style={{ flex: 1, fontSize: 14, lineHeight: 20 }}>
-                  I confirm the information above is accurate. I understand this demo stores
-                  everything only on this device and no real verification takes place.
-                </ThemedText>
-              </Pressable>
-              {err('agree') ? <ThemedText type="small" color={Colors.danger}>{err('agree')}</ThemedText> : null}
-            </>
-          )}
-        </ScrollView>
-
-        <View style={styles.footer}>
-          {last ? (
-            <Button title="Submit application" loading={submitting} disabled={submitting} onPress={() => void submit()} accessoryRight={<ChevronRight />} />
-          ) : (
-            <Button title="Continue" onPress={next} accessoryRight={<ChevronRight />} />
-          )}
-        </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
-  );
+/** "31.12.2030" → "2030-12-31", or null when it isn't a real future date. */
+function toIsoDate(v: string) {
+  const m = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(v);
+  if (!m) return null;
+  const iso = `${m[3]}-${m[2]}-${m[1]}`;
+  const date = new Date(`${iso}T00:00:00Z`);
+  if (Number.isNaN(date.getTime()) || date.getUTCDate() !== Number(m[1])) return null;
+  return date.getTime() > Date.now() ? iso : null;
 }
 
-function ReviewRow({ label, value, onEdit }: { label: string; value: string; onEdit: () => void }) {
-  return (
-    <Pressable
-      onPress={onEdit}
-      accessibilityRole="button"
-      accessibilityLabel={`${label}: ${value}. Edit`}
-      style={styles.reviewRow}>
-      <View style={{ flex: 1, gap: 2 }}>
-        <ThemedText type="label">{label}</ThemedText>
-        <ThemedText type="body" style={{ fontSize: 15 }}>{value || '—'}</ThemedText>
-      </View>
-      <ThemedText type="small" color={Colors.mint}>Edit</ThemedText>
-    </Pressable>
-  );
-}
-
-function validateStep(step: number, f: Form): Partial<Record<keyof Form, string>> {
-  const e: Partial<Record<keyof Form, string>> = {};
-  if (step === 0) {
-    if (f.firstName.trim().length < 2) e.firstName = 'Enter your first name.';
-    if (f.lastName.trim().length < 2) e.lastName = 'Enter your last name.';
-    if (!/^\d{2}\.\d{2}\.\d{4}$/.test(f.dob)) e.dob = 'Use DD.MM.YYYY.';
-  }
-  if (step === 1) {
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(f.email)) e.email = 'Enter a valid email address.';
-    if (f.altPhone && normalizeDigits(f.altPhone).length !== 9) e.altPhone = 'Enter 9 digits or leave it empty.';
-    if (f.city.trim().length < 2) e.city = 'Enter your city.';
-  }
-  if (step === 2 && f.nationalId.length !== 16) e.nationalId = 'The National ID has 16 digits.';
-  if (step === 3) {
-    if (f.license.trim().length < 7) e.license = 'Licence numbers are at least 7 characters.';
-    if (!/^\d{2}\.\d{2}\.\d{4}$/.test(f.licenseExpiry)) e.licenseExpiry = 'Use DD.MM.YYYY.';
-    if (f.vehicle.trim().length < 3) e.vehicle = 'Enter your vehicle make and model.';
-    if (!/^[A-Z]{3}\d{3}[A-Z]$/.test(f.plate.replace(/\s/g, ''))) e.plate = 'Format: RAD 123 A.';
-  }
-  if (step === 4) {
-    if (!f.idDoc) e.idDoc = 'Attach the National ID photo (simulated).';
-    if (!f.licenseDoc) e.licenseDoc = 'Attach the licence photo (simulated).';
-  }
-  if (step === 5 && !f.agree) e.agree = 'Please confirm before submitting.';
+/** Field problems as message keys, so validation stays independent of the language. */
+function validate(f: Form): Partial<Record<keyof Form, MessageKey>> {
+  const e: Partial<Record<keyof Form, MessageKey>> = {};
+  if (f.legalName.trim().length < 2) e.legalName = 'apply.invalid.legalName';
+  if (f.licenseNumber.trim().length < 5) e.licenseNumber = 'apply.invalid.licence';
+  if (f.nationalIdNumber.length !== 16) e.nationalIdNumber = 'apply.invalid.nationalId';
+  if (!toIsoDate(f.licenseExpiry)) e.licenseExpiry = 'apply.invalid.expiry';
+  const years = Number(f.yearsDriving);
+  if (f.yearsDriving === '' || !Number.isInteger(years) || years > 60) e.yearsDriving = 'apply.invalid.years';
+  if (f.languages.length < 1) e.languages = 'apply.invalid.languages';
+  if (!f.gearbox) e.gearbox = 'apply.invalid.gearbox';
+  if (!f.agree) e.agree = 'apply.invalid.agree';
   return e;
 }
 
+export default function DriverApplyScreen() {
+  const { session, refresh } = useSession();
+  const { t, amount } = useI18n();
+  const { gutter } = useLayout();
+  const [application, setApplication] = useState<DriverApplication | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [form, setForm] = useState<Form>({
+    legalName: session.user?.displayName ?? '',
+    licenseNumber: '',
+    nationalIdNumber: '',
+    licenseExpiry: '',
+    yearsDriving: '',
+    languages: [],
+    addressNote: '',
+    gearbox: null,
+    agree: false,
+  });
+  const [touched, setTouched] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // resume an open application (e.g. documents still missing)
+  useEffect(() => {
+    if (!session.user) return;
+    void (async () => {
+      try {
+        const apps = await Drivers.applications();
+        const open = apps.find((a) => a.status === 'SUBMITTED' && !a.decidedAt);
+        setApplication(open ?? null);
+      } catch (e) {
+        setError(errorMessage(e));
+      } finally {
+        setLoaded(true);
+      }
+    })();
+  }, [session.user]);
+
+  if (!session.user) return <Redirect href="/" />;
+
+  const step = application ? 1 : 0;
+  const uploaded = new Set(application?.documents.map((d) => d.docType));
+  const docsDone = REQUIRED_DOCS.every((d) => uploaded.has(d));
+
+  const set = <K extends keyof Form>(key: K, value: Form[K]) => setForm((f) => ({ ...f, [key]: value }));
+  const toggleLanguage = (lang: string) =>
+    setForm((f) => ({
+      ...f,
+      languages: f.languages.includes(lang) ? f.languages.filter((l) => l !== lang) : [...f.languages, lang],
+    }));
+
+  const errors = validate(form);
+  const err = (k: keyof Form) => {
+    const key = touched ? errors[k] : undefined;
+    return key ? t(key) : null;
+  };
+
+  const back = () => {
+    if (router.canGoBack()) router.back();
+    else router.replace('/role');
+  };
+
+  const submit = async () => {
+    setTouched(true);
+    setError(null);
+    if (busy || Object.keys(errors).length > 0) return;
+    setBusy(true);
+    try {
+      const created = await Drivers.apply({
+        legalName: form.legalName.trim(),
+        licenseNumber: form.licenseNumber.trim(),
+        nationalIdNumber: form.nationalIdNumber,
+        licenseExpiry: toIsoDate(form.licenseExpiry)!,
+        yearsDriving: Number(form.yearsDriving),
+        languages: form.languages,
+        addressNote: form.addressNote.trim() || undefined,
+        drivesManual: form.gearbox === 'MANUAL',
+      });
+      setApplication({ ...created, documents: created.documents ?? [] });
+      setTouched(false);
+      await refresh().catch(() => {});
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const reloadApplication = async () => {
+    const apps = await Drivers.applications().catch(() => null);
+    const open = apps?.find((a) => a.id === application?.id);
+    if (open) setApplication(open);
+  };
+
+  const finish = async () => {
+    setBusy(true);
+    await refresh().catch(() => {});
+    router.replace('/');
+  };
+
+  return (
+    <Screen
+      header={
+        <View style={[styles.header, { paddingHorizontal: gutter }]}>
+          <BackButton onPress={back} />
+          <View style={{ flex: 1, gap: 6 }}>
+            <ThemedText type="label">{t('apply.step', { step: step + 1, total: 3 })}</ThemedText>
+            <View style={styles.progressTrack}>
+              <View style={[styles.progressFill, { width: `${((step + 1) / 3) * 100}%` }]} />
+            </View>
+          </View>
+        </View>
+      }
+      footer={
+        !loaded ? undefined : step === 0 ? (
+          <Button title={t('apply.submit')} loading={busy} onPress={() => void submit()} accessoryRight={<ChevronRight />} />
+        ) : (
+          <Button
+            title={t('common.continue')}
+            loading={busy}
+            disabled={!docsDone}
+            onPress={() => void finish()}
+            accessoryRight={<ChevronRight />}
+          />
+        )
+      }>
+      <View style={styles.intro}>
+        <ThemedText type="title">{step === 0 ? t('apply.aboutTitle') : t('apply.docsTitle')}</ThemedText>
+        <ThemedText type="body" color={Colors.textDim}>
+          {step === 0
+            ? t('apply.aboutSubtitle')
+            : t('apply.docsSubtitle')}
+        </ThemedText>
+      </View>
+
+      {!loaded ? (
+        <ThemedText type="caption">{t('common.loading')}</ThemedText>
+      ) : step === 0 ? (
+        <>
+          <TextField
+            label={t('apply.legalName')}
+            value={form.legalName}
+            onChangeText={(v) => set('legalName', v)}
+            autoCapitalize="words"
+            autoComplete="name"
+            error={err('legalName')}
+          />
+          <TextField
+            label={t('apply.licence')}
+            value={form.licenseNumber}
+            onChangeText={(v) => set('licenseNumber', v.toUpperCase().slice(0, 40))}
+            autoCapitalize="characters"
+            error={err('licenseNumber')}
+          />
+          <TextField
+            label={t('apply.nationalId')}
+            value={form.nationalIdNumber}
+            onChangeText={(v) => set('nationalIdNumber', onlyDigits(v, 16))}
+            keyboardType="number-pad"
+            helper={t('apply.nationalIdHelp')}
+            error={err('nationalIdNumber')}
+          />
+          <View style={styles.pair}>
+            <TextField
+              label={t('apply.expiry')}
+              value={form.licenseExpiry}
+              onChangeText={(v) => set('licenseExpiry', dotDate(v))}
+              placeholder={t('apply.expiryPlaceholder')}
+              keyboardType="number-pad"
+              error={err('licenseExpiry')}
+              containerStyle={styles.pairItem}
+            />
+            <TextField
+              label={t('apply.years')}
+              value={form.yearsDriving}
+              onChangeText={(v) => set('yearsDriving', onlyDigits(v, 2))}
+              keyboardType="number-pad"
+              placeholder={t('apply.yearsPlaceholder')}
+              error={err('yearsDriving')}
+              containerStyle={styles.pairItem}
+            />
+          </View>
+          <View style={styles.group}>
+            <Segmented
+              label={t('apply.carsYouCanDrive')}
+              value={form.gearbox}
+              onChange={(v) => set('gearbox', v)}
+              options={[
+                { value: 'MANUAL', label: t('apply.manualAndAuto') },
+                { value: 'AUTOMATIC', label: t('apply.autoOnly') },
+              ]}
+            />
+            {err('gearbox') ? (
+              <ThemedText type="small" color={Colors.danger} style={styles.groupLabel}>
+                {err('gearbox')}
+              </ThemedText>
+            ) : null}
+          </View>
+          <View style={styles.group}>
+            <ThemedText type="label" style={styles.groupLabel}>
+              {t('apply.languages')}
+            </ThemedText>
+            <View style={styles.langRow}>
+              {LANGUAGE_OPTIONS.map((lang) => {
+                const on = form.languages.includes(lang);
+                return (
+                  <Pressable
+                    key={lang}
+                    onPress={() => toggleLanguage(lang)}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: on }}
+                    accessibilityLabel={t('apply.languageA11y', { name: t(`apply.spoken.${lang}`) })}
+                    style={({ pressed }) => [
+                      styles.langChip,
+                      on && styles.langChipOn,
+                      pressed && !on && { backgroundColor: Colors.surfaceAlt },
+                    ]}>
+                    {on ? <CheckIcon size={14} color={Colors.primary} strokeWidth={2.6} /> : null}
+                    <ThemedText type="small" color={on ? Colors.primary : Colors.textDim}>
+                      {t(`apply.spoken.${lang}`)}
+                    </ThemedText>
+                  </Pressable>
+                );
+              })}
+            </View>
+            {err('languages') ? (
+              <ThemedText type="small" color={Colors.danger} style={styles.groupLabel}>
+                {err('languages')}
+              </ThemedText>
+            ) : null}
+          </View>
+          <TextField
+            label={t('apply.waitingArea')}
+            value={form.addressNote}
+            onChangeText={(v) => set('addressNote', v.slice(0, 240))}
+            multiline
+            numberOfLines={3}
+            placeholder={t('apply.waitingPlaceholder')}
+          />
+          <Pressable
+            onPress={() => set('agree', !form.agree)}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: form.agree }}
+            style={styles.agreeRow}>
+            <View style={[styles.checkbox, form.agree && styles.checkboxOn]}>
+              {form.agree ? <CheckIcon size={16} color={Colors.onPrimary} strokeWidth={2.8} /> : null}
+            </View>
+            <ThemedText type="caption" style={{ flex: 1 }}>
+              {t('apply.agree', { amount: amount(REGISTRATION_FEE_RWF) })}
+            </ThemedText>
+          </Pressable>
+          {err('agree') ? <ThemedText type="small" color={Colors.danger}>{err('agree')}</ThemedText> : null}
+        </>
+      ) : (
+        REQUIRED_DOCS.map((d) => (
+          <DocUploadField
+            key={d}
+            label={t(`apply.doc.${d}`)}
+            hint={t(`apply.doc.${d}_HINT`)}
+            docType={d}
+            applicationId={application!.id}
+            uploaded={uploaded.has(d)}
+            onUploaded={() => void reloadApplication()}
+          />
+        ))
+      )}
+
+      <FormError message={error} />
+    </Screen>
+  );
+}
+
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: Colors.ink },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.three,
-    paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.three,
-    paddingBottom: Spacing.two,
+    paddingTop: Spacing.two,
     width: '100%',
     maxWidth: MaxContentWidth,
     alignSelf: 'center',
   },
-  backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Colors.inkSurface,
-    borderWidth: 1,
-    borderColor: Colors.inkBorder,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  backChevron: {
-    width: 12,
-    height: 12,
-    borderLeftWidth: 2,
-    borderBottomWidth: 2,
-    borderColor: Colors.warm,
-    transform: [{ rotate: '45deg' }],
-    marginLeft: 4,
-  },
-  progressTrack: {
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: Colors.inkSurfaceHi,
-    overflow: 'hidden',
-  },
-  progressFill: { height: 4, borderRadius: 2, backgroundColor: Colors.mint },
-  content: {
-    width: '100%',
-    maxWidth: MaxContentWidth,
-    alignSelf: 'center',
-    paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.three,
-    paddingBottom: Spacing.six,
-    gap: Spacing.four,
-    flexGrow: 1,
-  },
-  title: { fontSize: 26, lineHeight: 32 },
-  why: { marginTop: -Spacing.two },
-  fillChip: {
-    alignSelf: 'flex-start',
-    borderRadius: Radius.pill,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: Colors.inkBorder,
-    backgroundColor: Colors.inkSurface,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
-  },
-  footer: {
-    paddingHorizontal: Spacing.four,
-    paddingBottom: Spacing.three,
-    width: '100%',
-    maxWidth: MaxContentWidth,
-    alignSelf: 'center',
-  },
-  reviewCard: {
-    borderRadius: Radius.card,
-    borderWidth: 1,
-    borderColor: Colors.inkBorder,
-    backgroundColor: Colors.inkSurface,
-    overflow: 'hidden',
-  },
-  reviewRow: {
+  progressTrack: { height: 4, borderRadius: 2, backgroundColor: Colors.border, overflow: 'hidden' },
+  progressFill: { height: 4, borderRadius: 2, backgroundColor: Colors.primary },
+  intro: { gap: Spacing.two },
+  pair: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.three },
+  pairItem: { flexGrow: 1, flexBasis: 140 },
+  group: { gap: Spacing.two },
+  groupLabel: { color: Colors.text, marginLeft: Spacing.one },
+  langRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
+  langChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: Spacing.three,
-    padding: Spacing.three,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.inkBorder,
+    gap: 6,
+    borderRadius: Radius.pill,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
+    paddingHorizontal: 14,
+    paddingVertical: Spacing.two,
   },
-  agreeRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.three, paddingHorizontal: Spacing.two },
+  langChipOn: { backgroundColor: Colors.primarySoft, borderColor: Colors.primary },
+  agreeRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.three },
   checkbox: {
     width: 24,
     height: 24,
     borderRadius: 7,
     borderWidth: 1.5,
-    borderColor: Colors.inkBorder,
-    backgroundColor: Colors.inkSurface,
+    borderColor: Colors.borderStrong,
+    backgroundColor: Colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 2,
+    marginTop: 1,
   },
-  checkboxOn: { backgroundColor: Colors.mint, borderColor: Colors.mint },
-  checkboxCheck: {
-    width: 11,
-    height: 6,
-    borderLeftWidth: 2.5,
-    borderBottomWidth: 2.5,
-    borderColor: Colors.ink,
-    transform: [{ rotate: '-45deg' }],
-    marginTop: -2,
-  },
+  checkboxOn: { backgroundColor: Colors.primary, borderColor: Colors.primary },
 });

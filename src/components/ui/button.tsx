@@ -44,13 +44,13 @@ export function Button({
         styles.base,
         styles[variant],
         size === 'lg' ? styles.lg : styles.md,
-        pressed && !isDisabled && styles.pressed,
+        pressed && !isDisabled && (variant === 'primary' ? styles.pressedPrimary : styles.pressed),
         isDisabled && styles.disabled,
         style as object,
       ]}
       {...rest}>
       {loading ? (
-        <ActivityIndicator color={variant === 'primary' ? Colors.ink : Colors.warm} />
+        <ActivityIndicator color={variant === 'primary' ? Colors.onPrimary : Colors.primary} />
       ) : (
         <View style={styles.content}>
           {icon}
@@ -58,7 +58,7 @@ export function Button({
             type="subtitle"
             numberOfLines={1}
             maxFontSizeMultiplier={1.3}
-            style={[styles.label, variant === 'primary' && styles.labelPrimary]}>
+            style={[styles.label, size === 'md' && styles.labelMd, variant === 'primary' && styles.labelPrimary]}>
             {title}
           </ThemedText>
           {accessoryRight}
@@ -69,18 +69,18 @@ export function Button({
 }
 
 /** Chevron / arrow used on the right edge of full-width CTAs. */
-export function ChevronRight({ color = Colors.ink, size = 20 }: { color?: string; size?: number }) {
+export function ChevronRight({ color = Colors.onPrimary, size = 20 }: { color?: string; size?: number }) {
   return (
     <View
       accessibilityElementsHidden
       style={{
-        width: size,
-        height: size,
-        transform: [{ rotate: '45deg' }],
+        width: size * 0.5,
+        height: size * 0.5,
+        transform: [{ rotate: '-45deg' }],
         borderRightWidth: 2,
         borderBottomWidth: 2,
         borderColor: color,
-        marginLeft: size * 0.15,
+        marginLeft: -size * 0.1,
       }}
     />
   );
@@ -90,31 +90,33 @@ const styles = StyleSheet.create({
   base: {
     minHeight: 56,
     borderRadius: Radius.pill,
-    paddingHorizontal: Spacing.five,
+    paddingHorizontal: Spacing.four,
     justifyContent: 'center',
     alignItems: 'center',
   },
   lg: {
-    minHeight: 60,
+    minHeight: 56,
   },
   md: {
-    minHeight: 48,
-    paddingHorizontal: 22,
+    minHeight: 46,
+    paddingHorizontal: 18,
   },
   primary: {
-    backgroundColor: Colors.mint,
+    backgroundColor: Colors.primary,
   },
   secondary: {
-    backgroundColor: Colors.inkSurfaceHi,
+    backgroundColor: Colors.surface,
     borderWidth: 1,
-    borderColor: Colors.inkBorder,
+    borderColor: Colors.borderStrong,
   },
   ghost: {
     backgroundColor: 'transparent',
   },
   pressed: {
-    opacity: 0.82,
-    transform: [{ scale: 0.985 }],
+    backgroundColor: Colors.surfaceAlt,
+  },
+  pressedPrimary: {
+    backgroundColor: Colors.primaryPressed,
   },
   disabled: {
     opacity: 0.4,
@@ -124,12 +126,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
+    maxWidth: '100%',
   },
   label: {
     fontSize: 17,
     lineHeight: 22,
+    flexShrink: 1,
+  },
+  labelMd: {
+    fontSize: 15,
+    lineHeight: 20,
   },
   labelPrimary: {
-    color: Colors.ink,
+    color: Colors.onPrimary,
   },
 });

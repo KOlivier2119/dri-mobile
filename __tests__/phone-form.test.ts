@@ -1,17 +1,14 @@
-import {
-  formatLocal,
-  isCompleteLocalNumber,
-  maskPhone,
-  normalizeDigits,
-  toDialString,
-} from '@/utils/phone';
-import { MOCK } from '@/store/session';
+import { formatLocal, isCompleteLocalNumber, maskPhone, normalizeDigits, toE164 } from '@/utils/phone';
 
 describe('phone input normalization', () => {
   it('strips non-digits and clamps to the local length', () => {
     expect(normalizeDigits('078 123-4567')).toBe('781234567');
     expect(normalizeDigits('7812345678901')).toBe('781234567');
     expect(normalizeDigits('abc')).toBe('');
+  });
+
+  it('drops the +250 dial code the API returns', () => {
+    expect(normalizeDigits('+250788123456')).toBe('788123456');
   });
 
   it('formats a 9-digit local number as 2-3-4 groups', () => {
@@ -21,24 +18,19 @@ describe('phone input normalization', () => {
     expect(formatLocal('')).toBe('');
   });
 
-  it('never duplicates the country code into the local number', () => {
-    expect(toDialString('250', '+250 78123 4567')).toBe('+250 781234567');
-    expect(toDialString('250', '78 123 4567')).toBe('+250 781234567');
+  it('builds the E.164 form without duplicating the country code', () => {
+    expect(toE164('78 123 4567')).toBe('+250781234567');
+    expect(toE164('0781234567')).toBe('+250781234567');
+    expect(toE164('+250 781234567')).toBe('+250781234567');
   });
 
   it('detects complete numbers only at full length', () => {
     expect(isCompleteLocalNumber('78 123 456')).toBe(false);
     expect(isCompleteLocalNumber('78 123 4567')).toBe(true);
   });
-});
 
-describe('otp contract', () => {
-  it('mock code is exactly 6 digits', () => {
-    expect(MOCK.otpCode).toMatch(/^\d{6}$/);
-  });
-
-  it('masks the demo phone for display', () => {
-    expect(maskPhone('+250 781234567')).toBe('+250 ••• 4567');
+  it('masks a phone for display', () => {
+    expect(maskPhone('+250781234567')).toBe('+250 ••• 4567');
     expect(maskPhone(null)).toBe('your number');
   });
 });

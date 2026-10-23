@@ -1,4 +1,3 @@
-import { Image } from 'expo-image';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useRef, useState } from 'react';
 import { Dimensions, StyleSheet, View } from 'react-native';
@@ -13,13 +12,13 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { Colors } from '@/constants/theme';
-import { Wordmark } from '@/components/brand/mark';
+import { BrandMark, Wordmark } from '@/components/brand/mark';
 
 const { width, height } = Dimensions.get('window');
 
 /**
  * In-app brand intro layered over the native splash so the handoff is seamless:
- * native splash (ink + mark) → this overlay continues the motion, then fades away.
+ * native splash (paper + mark) → this overlay continues the motion, then fades away.
  */
 export function SplashOverlay({ ready }: { ready: boolean }) {
   const reduced = useReducedMotion();
@@ -65,12 +64,7 @@ export function SplashOverlay({ ready }: { ready: boolean }) {
       <View style={styles.background}>
         <View style={styles.center}>
           <Animated.View style={markStyle}>
-            <Image
-              source={require('@/assets/images/dri-mark.png')}
-              style={{ width: markSize, height: markSize }}
-              contentFit="contain"
-              accessibilityLabel="DRI route mark"
-            />
+            <BrandMark size={markSize} />
           </Animated.View>
           <Animated.View style={[styles.wordRow, wordStyle]}>
             <View style={styles.rule} />
@@ -84,7 +78,7 @@ export function SplashOverlay({ ready }: { ready: boolean }) {
   );
 }
 
-/** A mint dot travelling a route line beneath the mark — restrained motion. */
+/** A green dot travelling a route line beneath the mark — restrained motion. */
 function RoutePulse({ reduced }: { reduced: boolean }) {
   const t = useSharedValue(0);
   useEffect(() => {
@@ -115,7 +109,7 @@ function RoutePulse({ reduced }: { reduced: boolean }) {
 const styles = StyleSheet.create({
   background: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: Colors.ink,
+    backgroundColor: Colors.bg,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -131,7 +125,7 @@ const styles = StyleSheet.create({
   rule: {
     width: 34,
     height: 1,
-    backgroundColor: Colors.inkBorder,
+    backgroundColor: Colors.border,
   },
   pulseWrap: {
     position: 'absolute',
@@ -145,14 +139,14 @@ const styles = StyleSheet.create({
     left: '8%',
     right: '8%',
     height: 1,
-    backgroundColor: Colors.inkBorder,
+    backgroundColor: Colors.border,
   },
   pulse: {
     position: 'absolute',
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: Colors.mint,
+    backgroundColor: Colors.primary,
     top: -2,
   },
 });

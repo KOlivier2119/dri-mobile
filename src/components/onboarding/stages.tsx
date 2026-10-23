@@ -1,344 +1,226 @@
 import { StyleSheet, View } from 'react-native';
+import Svg, { Circle, ClipPath, Defs, Ellipse, G, Line, Path, Rect } from 'react-native-svg';
 
-import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
-import { ThemedText } from '@/components/themed-text';
-import { BrandMark } from '@/components/brand/mark';
-import { MoonIcon, PinIcon, PreviewTag, WheelIcon } from '@/components/onboarding/illustrations';
+import { Colors } from '@/constants/theme';
+import { useI18n, type MessageKey } from '@/i18n';
 
-/** Screen 1 stage — an abstract night-route: your car, their wheel. */
-export function RouteMapStage() {
+/** Flat illustrations for the onboarding pages, drawn on a shared 320×220 canvas. */
+
+const W = 320;
+const H = 220;
+
+function Canvas({ children, labelKey }: { children: React.ReactNode; labelKey: MessageKey }) {
+  const { t } = useI18n();
   return (
-    <View style={styles.stage}>
-      {/* faint cross streets */}
-      <View style={[styles.hLine, { top: '18%' }]} />
-      <View style={[styles.hLine, { top: '74%' }]} />
-      <View style={[styles.vLine, { left: '22%' }]} />
-      <View style={[styles.vLine, { left: '78%' }]} />
-
-      {/* the route */}
-      <View style={styles.road}>
-        <View style={styles.dash} />
-        <View style={styles.dash} />
-        <View style={styles.dash} />
-        <View style={styles.dash} />
-      </View>
-
-      <View style={[styles.origin, { left: '10%', bottom: '12%' }]} />
-      <View style={[styles.pinFloat, { right: '14%', top: '10%' }]}>
-        <PinIcon size={20} color={Colors.warmFaint} />
-      </View>
-
-      {/* focal badge */}
-      <View style={styles.badge}>
-        <BrandMark size={96} />
-      </View>
-
-      {/* the two roles, side by side */}
-      <View style={styles.roleRow}>
-        <View style={styles.roleCard}>
-          <WheelIcon size={34} color={Colors.mint} />
-          <ThemedText type="small" color={Colors.warmDim}>
-            their wheel
-          </ThemedText>
-        </View>
-        <View style={styles.roleCard}>
-          <MoonIcon size={32} color={Colors.warm} />
-          <ThemedText type="small" color={Colors.warmDim}>
-            your night
-          </ThemedText>
-        </View>
-      </View>
-      <PreviewTag style={{ position: 'absolute', top: 0, left: 0 }} />
+    <View style={styles.canvas} accessible accessibilityRole="image" accessibilityLabel={t(labelKey)}>
+      <Svg width="100%" height="100%" viewBox={`0 0 ${W} ${H}`}>
+        <Defs>
+          <ClipPath id="frame">
+            <Rect width={W} height={H} rx={24} />
+          </ClipPath>
+        </Defs>
+        <G clipPath="url(#frame)">{children}</G>
+      </Svg>
     </View>
   );
 }
 
-/** Screen 2 stage — a believable service-selection sheet in a phone frame. */
-export function ServiceSheetStage() {
+const PARK = '#CFE9DA';
+const TREE = '#9ED2B6';
+
+/** Page 1 — a city grid with your route, your car on it, and your driver. */
+export function CityRouteScene() {
+  const blocks: [number, number, number, number, string?][] = [
+    [16, 16, 80, 64],
+    [112, 16, 88, 64, PARK],
+    [216, 16, 88, 64],
+    [16, 96, 80, 44],
+    [112, 96, 88, 44],
+    [216, 96, 88, 44],
+    [16, 156, 80, 48],
+    [112, 156, 88, 48],
+    [216, 156, 88, 48, PARK],
+  ];
+  const route = 'M40 148 H96 Q104 148 104 140 V96 Q104 88 112 88 H200 Q208 88 208 80 V50';
+
   return (
-    <View style={styles.stage}>
-      <View style={styles.phone}>
-        <View style={styles.notch} />
-        <ThemedText style={styles.sheetTitle}>Choose a service</ThemedText>
+    <Canvas labelKey="onboarding.route.a11y">
+      <Rect width={W} height={H} fill="#E4EEE8" />
+      {blocks.map(([x, y, w, h, fill], i) => (
+        <Rect key={i} x={x} y={y} width={w} height={h} rx={10} fill={fill ?? Colors.surface} />
+      ))}
+      <Circle cx={136} cy={42} r={10} fill={TREE} />
+      <Circle cx={160} cy={58} r={12} fill={TREE} />
+      <Circle cx={182} cy={36} r={8} fill={TREE} />
+      <Circle cx={292} cy={174} r={8} fill={TREE} />
 
-        <View style={[styles.serviceRow, styles.serviceRowSelected]}>
-          <View style={[styles.iconBox, styles.iconBoxSelected]}>
-            <MoonIcon size={26} color={Colors.ink} />
-          </View>
-          <View style={{ flex: 1, gap: 2 }}>
-            <ThemedText type="subtitle" style={{ fontSize: 16, lineHeight: 22 }}>
-              BOB Night
-            </ThemedText>
-            <ThemedText type="small" color={Colors.warmDim}>
-              A designated driver for your evening
-            </ThemedText>
-          </View>
-          <View style={styles.checkDot} />
-        </View>
+      <Path d={route} stroke={Colors.surface} strokeWidth={12} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      <Path d={route} stroke={Colors.primary} strokeWidth={5} fill="none" strokeLinecap="round" strokeLinejoin="round" />
 
-        <View style={styles.serviceRow}>
-          <View style={styles.iconBox}>
-            <WheelIcon size={26} color={Colors.warm} />
-          </View>
-          <View style={{ flex: 1, gap: 2 }}>
-            <ThemedText type="subtitle" style={{ fontSize: 16, lineHeight: 22 }}>
-              Private Driver
-            </ThemedText>
-            <ThemedText type="small" color={Colors.warmDim}>
-              Hours or a full day, on your schedule
-            </ThemedText>
-          </View>
-        </View>
+      <Circle cx={40} cy={148} r={7} fill={Colors.surface} stroke={Colors.text} strokeWidth={3} />
 
-        <View style={styles.sheetCta}>
-          <ThemedText style={styles.sheetCtaText}>Continue</ThemedText>
-        </View>
-      </View>
-      <PreviewTag style={{ position: 'absolute', bottom: 4, left: 4 }} />
-    </View>
+      <Path d="M208 50 C203 44 196 37 196 30 A12 12 0 1 1 220 30 C220 37 213 44 208 50 Z" fill={Colors.sun} />
+      <Circle cx={208} cy={30} r={4.5} fill={Colors.surface} />
+
+      <G transform="translate(156 88) rotate(90)">
+        <Rect x={-11} y={-18} width={22} height={36} rx={7} fill={Colors.text} />
+        <Rect x={-8} y={-10} width={16} height={7} rx={2.5} fill={Colors.primaryTint} />
+        <Rect x={-8} y={7} width={16} height={5} rx={2} fill={Colors.primaryTint} />
+      </G>
+
+      <Rect x={150} y={155} width={150} height={52} rx={14} fill={Colors.text} opacity={0.06} />
+      <Rect x={150} y={150} width={150} height={52} rx={14} fill={Colors.surface} />
+      <Circle cx={176} cy={176} r={14} fill={Colors.primaryTint} />
+      <Circle cx={176} cy={172} r={5} fill={Colors.primary} />
+      <Path d="M167 186 C169 180 183 180 185 186" stroke={Colors.primary} strokeWidth={3.5} strokeLinecap="round" fill="none" />
+      <Rect x={198} y={166} width={66} height={8} rx={4} fill={Colors.text} opacity={0.85} />
+      <Rect x={198} y={180} width={44} height={7} rx={3.5} fill={Colors.borderStrong} />
+      <Star cx={282} cy={170} r={7} />
+    </Canvas>
   );
 }
 
-/** Screen 3 stage — driver identity card above a shared trip line. */
-export function ConfidenceStage() {
+/** Page 2 — the same car, a driver at the wheel, from evening to daytime. */
+export function DayNightScene() {
   return (
-    <View style={styles.stage}>
-      <View style={styles.idCard}>
-        <View style={styles.avatar}>
-          <ThemedText style={styles.initials}>JE</ThemedText>
-        </View>
-        <View style={{ flex: 1, gap: 2 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <ThemedText type="subtitle" style={{ fontSize: 17, lineHeight: 22 }}>
-              Jean E.
-            </ThemedText>
-            <ThemedText type="small" color={Colors.mint}>
-              4.9
-            </ThemedText>
-          </View>
-          <ThemedText type="small" color={Colors.warmDim}>
-            Toyota RAV4 · Kigali · CN 123 A
-          </ThemedText>
-        </View>
-        <View style={styles.idBadge}>
-          <ThemedText style={styles.idBadgeText}>DRI</ThemedText>
-        </View>
-      </View>
+    <Canvas labelKey="onboarding.dayNight.a11y">
+      <Rect x={0} y={0} width={160} height={H} fill={Colors.duskSoft} />
+      <Rect x={160} y={0} width={160} height={H} fill={Colors.sunSoft} />
 
-      <View style={styles.tripLine}>
-        <View style={styles.tripDotStart} />
-        <View style={styles.tripRoad}>
-          <View style={styles.tripProgress} />
-        </View>
-        <View style={styles.tripDotEnd} />
-      </View>
+      <Circle cx={58} cy={50} r={18} fill={Colors.dusk} />
+      <Circle cx={67} cy={43} r={16} fill={Colors.duskSoft} />
+      {[
+        [104, 34, 2],
+        [126, 62, 1.6],
+        [30, 88, 1.6],
+        [96, 84, 2],
+      ].map(([cx, cy, r], i) => (
+        <Circle key={i} cx={cx} cy={cy} r={r} fill={Colors.dusk} opacity={0.55} />
+      ))}
 
-      <View style={styles.safetyRow}>
-        <View style={styles.safetyChip}>
-          <ThemedText type="small" color={Colors.warmDim}>
-            Share trip
-          </ThemedText>
-        </View>
-        <View style={styles.safetyChip}>
-          <ThemedText type="small" color={Colors.warmDim}>
-            Trip details
-          </ThemedText>
-        </View>
-        <View style={styles.safetyChip}>
-          <ThemedText type="small" color={Colors.warmDim}>
-            Contacts
-          </ThemedText>
-        </View>
-      </View>
-      <PreviewTag style={{ position: 'absolute', top: 0, right: 0 }} />
-    </View>
+      <Circle cx={254} cy={50} r={17} fill={Colors.sun} />
+      {Array.from({ length: 8 }, (_, i) => {
+        const a = (i * Math.PI) / 4;
+        return (
+          <Line
+            key={i}
+            x1={254 + Math.cos(a) * 25}
+            y1={50 + Math.sin(a) * 25}
+            x2={254 + Math.cos(a) * 31}
+            y2={50 + Math.sin(a) * 31}
+            stroke={Colors.sun}
+            strokeWidth={3}
+            strokeLinecap="round"
+          />
+        );
+      })}
+
+      {[
+        [10, 112, 30, 70],
+        [44, 92, 26, 90],
+        [74, 122, 34, 60],
+        [112, 102, 28, 80],
+        [140, 130, 20, 52],
+      ].map(([x, y, w, h], i) => (
+        <Rect key={i} x={x} y={y} width={w} height={h} rx={3} fill="#D4D5EE" />
+      ))}
+      {[
+        [50, 104],
+        [58, 120],
+        [118, 114],
+        [126, 132],
+        [18, 126],
+      ].map(([x, y], i) => (
+        <Rect key={i} x={x} y={y} width={5} height={6} rx={1} fill={Colors.sun} opacity={0.75} />
+      ))}
+      {[
+        [160, 120, 24, 62],
+        [188, 98, 30, 84],
+        [222, 126, 26, 56],
+        [252, 106, 32, 76],
+        [288, 124, 32, 58],
+      ].map(([x, y, w, h], i) => (
+        <Rect key={i} x={x} y={y} width={w} height={h} rx={3} fill="#F2DFBC" />
+      ))}
+
+      <Rect x={0} y={178} width={W} height={42} fill={Colors.border} />
+      <Line x1={0} y1={202} x2={W} y2={202} stroke={Colors.surface} strokeWidth={3} strokeDasharray="14 10" />
+
+      <Ellipse cx={160} cy={192} rx={66} ry={5} fill={Colors.text} opacity={0.08} />
+      <Path d="M126 152 L140 129 Q143 125 148 125 H178 Q183 125 186 129 L200 152 Z" fill={Colors.primary} />
+      <Rect x={104} y={150} width={112} height={32} rx={12} fill={Colors.primary} />
+      <Path d="M135 150 L145 133 Q147 130 150 130 H158 V150 Z" fill={Colors.primaryTint} />
+      <Path d="M163 150 V130 H176 Q179 130 181 133 L191 150 Z" fill={Colors.primaryTint} />
+      <Circle cx={173} cy={141} r={5} fill={Colors.text} opacity={0.8} />
+      <Rect x={207} y={160} width={9} height={6} rx={3} fill={Colors.sunSoft} />
+      <Rect x={104} y={160} width={6} height={6} rx={2} fill={Colors.danger} opacity={0.8} />
+      <Circle cx={133} cy={182} r={12} fill={Colors.text} />
+      <Circle cx={133} cy={182} r={5} fill={Colors.borderStrong} />
+      <Circle cx={188} cy={182} r={12} fill={Colors.text} />
+      <Circle cx={188} cy={182} r={5} fill={Colors.borderStrong} />
+    </Canvas>
   );
+}
+
+/** Page 3 — a live trip screen, a vetted-driver shield and a shared-trip card. */
+export function TrustScene() {
+  return (
+    <Canvas labelKey="onboarding.trust.a11y">
+      <Rect width={W} height={H} fill={Colors.primarySoft} />
+      <Circle cx={160} cy={118} r={96} stroke={Colors.primaryTint} strokeWidth={1.5} fill="none" />
+      <Circle cx={160} cy={118} r={66} stroke={Colors.primaryTint} strokeWidth={1.5} fill="none" />
+
+      <Rect x={100} y={24} width={120} height={220} rx={20} fill={Colors.text} opacity={0.06} />
+      <Rect x={100} y={18} width={120} height={220} rx={20} fill={Colors.surface} />
+      <Rect x={110} y={30} width={100} height={72} rx={12} fill={Colors.surfaceAlt} />
+      <Path d="M122 90 C140 90 140 58 160 60 S186 46 198 44" stroke={Colors.primaryTint} strokeWidth={4} strokeLinecap="round" fill="none" />
+      <Path d="M122 90 C140 90 140 58 160 60" stroke={Colors.primary} strokeWidth={4} strokeLinecap="round" fill="none" />
+      <Circle cx={122} cy={90} r={4} fill={Colors.text} />
+      <Circle cx={160} cy={60} r={5.5} fill={Colors.surface} stroke={Colors.primary} strokeWidth={3} />
+      <Circle cx={198} cy={44} r={5} fill={Colors.sun} />
+
+      <Circle cx={124} cy={124} r={12} fill={Colors.primaryTint} />
+      <Circle cx={124} cy={121} r={4.5} fill={Colors.primary} />
+      <Path d="M116.5 132 C118 127 130 127 131.5 132" stroke={Colors.primary} strokeWidth={3} strokeLinecap="round" fill="none" />
+      <Rect x={142} y={116} width={50} height={7} rx={3.5} fill={Colors.text} opacity={0.85} />
+      <Rect x={142} y={128} width={34} height={6} rx={3} fill={Colors.borderStrong} />
+      <Star cx={202} cy={120} r={5} />
+
+      <Rect x={110} y={150} width={100} height={24} rx={12} fill={Colors.primary} />
+      <Rect x={138} y={160} width={44} height={4} rx={2} fill={Colors.surface} opacity={0.9} />
+      <Rect x={110} y={186} width={100} height={6} rx={3} fill={Colors.surfaceAlt} />
+      <Rect x={110} y={198} width={70} height={6} rx={3} fill={Colors.surfaceAlt} />
+
+      <Path d="M62 86 L88 96 V116 C88 133 77 144 62 150 C47 144 36 133 36 116 V96 Z" fill={Colors.primary} />
+      <Path d="M51 117 L59 125 L74 109" stroke={Colors.surface} strokeWidth={4.5} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+
+      <Rect x={228} y={133} width={80} height={46} rx={13} fill={Colors.text} opacity={0.06} />
+      <Rect x={228} y={128} width={80} height={46} rx={13} fill={Colors.surface} />
+      <Circle cx={248} cy={151} r={11} fill={Colors.sunSoft} />
+      <Circle cx={244} cy={151} r={2.5} fill={Colors.sun} />
+      <Circle cx={252} cy={146} r={2.5} fill={Colors.sun} />
+      <Circle cx={252} cy={156} r={2.5} fill={Colors.sun} />
+      <Path d="M244 151 L252 146 M244 151 L252 156" stroke={Colors.sun} strokeWidth={1.6} />
+      <Rect x={264} y={144} width={34} height={6} rx={3} fill={Colors.text} opacity={0.85} />
+      <Rect x={264} y={155} width={24} height={5} rx={2.5} fill={Colors.borderStrong} />
+    </Canvas>
+  );
+}
+
+function Star({ cx, cy, r }: { cx: number; cy: number; r: number }) {
+  const pts = Array.from({ length: 10 }, (_, i) => {
+    const a = -Math.PI / 2 + (i * Math.PI) / 5;
+    const rr = i % 2 === 0 ? r : r * 0.45;
+    return `${(cx + Math.cos(a) * rr).toFixed(2)},${(cy + Math.sin(a) * rr).toFixed(2)}`;
+  });
+  return <Path d={`M${pts.join(' L')} Z`} fill={Colors.sun} />;
 }
 
 const styles = StyleSheet.create({
-  stage: {
+  canvas: {
     width: '100%',
-    maxWidth: 420,
-    aspectRatio: 1.05,
-    maxHeight: '100%',
-    borderRadius: Radius.card,
-    backgroundColor: Colors.inkSurface,
-    borderWidth: 1,
-    borderColor: Colors.inkBorder,
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: Spacing.four,
-    gap: Spacing.four,
-  },
-  hLine: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    height: 1,
-    backgroundColor: Colors.inkBorder,
-    opacity: 0.6,
-  },
-  vLine: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    width: 1,
-    backgroundColor: Colors.inkBorder,
-    opacity: 0.6,
-  },
-  road: {
-    position: 'absolute',
-    left: '8%',
-    right: '8%',
-    bottom: '8%',
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: Colors.emeraldDeep,
-    transform: [{ rotate: '-14deg' }],
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
-  },
-  dash: { width: 16, height: 2, borderRadius: 1, backgroundColor: Colors.mint, opacity: 0.7 },
-  origin: {
-    position: 'absolute',
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: Colors.warm,
-  },
-  pinFloat: { position: 'absolute' },
-  badge: {
-    width: 148,
-    height: 148,
-    borderRadius: 44,
-    backgroundColor: Colors.ink,
-    borderWidth: 1,
-    borderColor: Colors.inkBorder,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  roleRow: { flexDirection: 'row', gap: Spacing.three },
-  roleCard: {
-    alignItems: 'center',
-    gap: Spacing.two,
-    backgroundColor: Colors.inkSurfaceHi,
-    borderRadius: Radius.card,
-    borderWidth: 1,
-    borderColor: Colors.inkBorder,
-    paddingVertical: Spacing.three,
-    paddingHorizontal: Spacing.four,
-  },
-
-  phone: {
-    width: '86%',
-    maxWidth: 320,
-    backgroundColor: Colors.ink,
-    borderRadius: 28,
-    borderWidth: 1,
-    borderColor: Colors.inkBorder,
-    padding: Spacing.three,
-    paddingTop: Spacing.four,
-    gap: Spacing.three,
-  },
-  notch: {
-    width: 64,
-    height: 5,
-    borderRadius: 3,
-    backgroundColor: Colors.inkBorder,
+    maxWidth: 400,
+    aspectRatio: W / H,
     alignSelf: 'center',
-    marginBottom: Spacing.one,
-  },
-  sheetTitle: {
-    fontFamily: Fonts.bold,
-    fontSize: 18,
-    color: Colors.warm,
-    marginBottom: Spacing.one,
-  },
-  serviceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.three,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: Colors.inkBorder,
-    backgroundColor: Colors.inkSurface,
-    padding: Spacing.three,
-  },
-  serviceRowSelected: {
-    borderColor: Colors.mint,
-    backgroundColor: Colors.mintSoft,
-  },
-  iconBox: {
-    width: 48,
-    height: 48,
-    borderRadius: 15,
-    backgroundColor: Colors.inkSurfaceHi,
-    borderWidth: 1,
-    borderColor: Colors.inkBorder,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconBoxSelected: { backgroundColor: Colors.mint, borderColor: Colors.mint },
-  checkDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: Colors.mint },
-  sheetCta: {
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Colors.mint,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sheetCtaText: { fontFamily: Fonts.bold, fontSize: 14, color: Colors.ink },
-
-  idCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.three,
-    width: '92%',
-    maxWidth: 360,
-    backgroundColor: Colors.ink,
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: Colors.inkBorder,
-    padding: Spacing.three,
-  },
-  avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: Colors.mintSoft,
-    borderWidth: 1,
-    borderColor: Colors.emerald,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  initials: { fontFamily: Fonts.bold, fontSize: 18, color: Colors.mint },
-  idBadge: {
-    backgroundColor: Colors.emerald,
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  idBadgeText: { fontFamily: Fonts.bold, fontSize: 10, letterSpacing: 1, color: Colors.warm },
-  tripLine: { flexDirection: 'row', alignItems: 'center', width: '80%', gap: 6 },
-  tripDotStart: { width: 10, height: 10, borderRadius: 5, backgroundColor: Colors.warm },
-  tripDotEnd: { width: 10, height: 10, borderRadius: 5, backgroundColor: Colors.mint },
-  tripRoad: {
-    flex: 1,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: Colors.inkSurfaceHi,
-    overflow: 'hidden',
-  },
-  tripProgress: { width: '62%', height: 6, borderRadius: 3, backgroundColor: Colors.emerald },
-  safetyRow: { flexDirection: 'row', gap: Spacing.two, flexWrap: 'wrap', justifyContent: 'center' },
-  safetyChip: {
-    borderRadius: Radius.pill,
-    borderWidth: 1,
-    borderColor: Colors.inkBorder,
-    backgroundColor: Colors.inkSurfaceHi,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
   },
 });

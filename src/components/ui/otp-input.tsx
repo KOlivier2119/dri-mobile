@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 
 import { Colors, Fonts, Radius } from '@/constants/theme';
+import { useI18n } from '@/i18n';
 
 export type OtpInputProps = {
   value: string;
@@ -27,6 +28,7 @@ export const OtpInput = forwardRef<TextInput, OtpInputProps>(function OtpInput(
   { value, onChange, onComplete, maxLength = 6, error, disabled },
   ref,
 ) {
+  const { t } = useI18n();
   const cells = Array.from({ length: maxLength }, (_, i) => value[i] ?? '');
 
   const handleKeyPress = (e: NativeSyntheticEvent<TextInputKeyPressEventData>) => {
@@ -36,7 +38,7 @@ export const OtpInput = forwardRef<TextInput, OtpInputProps>(function OtpInput(
   };
 
   return (
-    <View accessibilityLabel={`Verification code, ${value.length} of ${maxLength} digits entered`}>
+    <View accessibilityLabel={t('otp.a11y', { count: value.length, max: maxLength })}>
       <TextInput
         ref={ref}
         value={value}
@@ -90,7 +92,7 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 8,
     justifyContent: 'center',
   },
   rowError: {},
@@ -100,17 +102,17 @@ const styles = StyleSheet.create({
     maxHeight: 64,
     borderRadius: Radius.field,
     borderWidth: 1.5,
-    borderColor: Colors.inkBorder,
-    backgroundColor: Colors.inkSurface,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
   cellFilled: {
-    borderColor: Colors.emerald,
-    backgroundColor: Colors.inkSurfaceHi,
+    borderColor: Colors.primaryTint,
+    backgroundColor: Colors.surface,
   },
   cellActive: {
-    borderColor: Colors.mint,
+    borderColor: Colors.primary,
   },
   cellError: {
     borderColor: Colors.danger,
@@ -124,12 +126,12 @@ const styles = StyleSheet.create({
     width: 2,
     height: 26,
     borderRadius: 1,
-    backgroundColor: Colors.mint,
+    backgroundColor: Colors.primary,
   },
   digit: {
     fontFamily: Fonts.regular,
     fontSize: 26,
     fontWeight: '600',
-    color: Colors.warm,
+    color: Colors.text,
   },
 });

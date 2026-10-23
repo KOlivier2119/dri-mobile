@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
+import { Pressable, StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
 
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { ThemedText } from '@/components/themed-text';
+import { EyeIcon, EyeOffIcon } from '@/components/onboarding/illustrations';
+import { useI18n } from '@/i18n';
 
 export type TextFieldProps = Omit<TextInputProps, 'style'> & {
   label: string;
@@ -25,10 +27,14 @@ export function TextField({
   onFocus,
   onBlur,
   accessibilityLabel,
+  secureTextEntry,
   ...inputProps
 }: TextFieldProps) {
   const [focused, setFocused] = useState(false);
-  const borderColor = error ? Colors.danger : focused ? Colors.mint : Colors.inkBorder;
+  // password fields get a show/hide toggle; hidden by default
+  const [revealed, setRevealed] = useState(false);
+  const { t } = useI18n();
+  const borderColor = error ? Colors.danger : focused ? Colors.primary : Colors.border;
 
   return (
     <View style={[styles.container, containerStyle]}>
@@ -39,9 +45,10 @@ export function TextField({
         {prefix}
         <TextInput
           accessibilityLabel={accessibilityLabel ?? label}
-          placeholderTextColor={Colors.warmFaint}
-          selectionColor={Colors.mint}
+          placeholderTextColor={Colors.textFaint}
+          selectionColor={Colors.primary}
           {...inputProps}
+          secureTextEntry={secureTextEntry && !revealed}
           onFocus={(e) => {
             setFocused(true);
             onFocus?.(e);
@@ -53,13 +60,27 @@ export function TextField({
           style={styles.input}
         />
         {suffix}
+        {secureTextEntry ? (
+          <Pressable
+            onPress={() => setRevealed((v) => !v)}
+            accessibilityRole="button"
+            accessibilityLabel={revealed ? t('common.hidePassword') : t('common.showPassword')}
+            hitSlop={10}
+            style={styles.eye}>
+            {revealed ? (
+              <EyeOffIcon size={22} color={Colors.textDim} />
+            ) : (
+              <EyeIcon size={22} color={Colors.textDim} />
+            )}
+          </Pressable>
+        ) : null}
       </View>
       {error ? (
         <ThemedText type="small" color={Colors.danger} style={styles.error} accessibilityLiveRegion="polite">
           {error}
         </ThemedText>
       ) : helper ? (
-        <ThemedText type="small" color={Colors.warmFaint} style={styles.error}>
+        <ThemedText type="small" color={Colors.textFaint} style={styles.error}>
           {helper}
         </ThemedText>
       ) : null}
@@ -73,20 +94,21 @@ const styles = StyleSheet.create({
   },
   label: {
     fontFamily: Fonts.medium,
-    marginLeft: Spacing.two,
+    color: Colors.text,
+    marginLeft: Spacing.one,
   },
   field: {
     minHeight: 56,
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
-    backgroundColor: Colors.inkSurface,
+    backgroundColor: Colors.surface,
     borderWidth: 1.5,
     borderRadius: Radius.field,
     paddingHorizontal: Spacing.three,
   },
   fieldRaised: {
-    backgroundColor: Colors.inkSurfaceHi,
+    backgroundColor: Colors.surface,
   },
   input: {
     flex: 1,
@@ -94,10 +116,17 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.regular,
     fontSize: 17,
     lineHeight: 22,
-    color: Colors.warm,
+    color: Colors.text,
     paddingVertical: Spacing.three,
   },
+  eye: {
+    width: 40,
+    height: 40,
+    marginRight: -Spacing.two,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   error: {
-    marginLeft: Spacing.two,
+    marginLeft: Spacing.one,
   },
 });

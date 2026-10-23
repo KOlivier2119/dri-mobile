@@ -1,28 +1,33 @@
+/*
+ * Metro rewrites a @font-face family that contains a space ("Geist 400" ->
+ * "Geist_400"), so every var below lists both spellings: whichever one the
+ * bundler emits is the one that resolves.
+ */
 @font-face {
   font-family: 'Geist 400';
-  src: url('@expo-google-fonts/geist/400Regular/Geist_400Regular.ttf') format('truetype');
+  src: url('../node_modules/@expo-google-fonts/geist/400Regular/Geist_400Regular.ttf') format('truetype');
 }
 @font-face {
   font-family: 'Geist 500';
-  src: url('@expo-google-fonts/geist/500Medium/Geist_500Medium.ttf') format('truetype');
+  src: url('../node_modules/@expo-google-fonts/geist/500Medium/Geist_500Medium.ttf') format('truetype');
 }
 @font-face {
   font-family: 'Geist 600';
-  src: url('@expo-google-fonts/geist/600SemiBold/Geist_600SemiBold.ttf') format('truetype');
+  src: url('../node_modules/@expo-google-fonts/geist/600SemiBold/Geist_600SemiBold.ttf') format('truetype');
 }
 @font-face {
   font-family: 'Geist 700';
-  src: url('@expo-google-fonts/geist/700Bold/Geist_700Bold.ttf') format('truetype');
+  src: url('../node_modules/@expo-google-fonts/geist/700Bold/Geist_700Bold.ttf') format('truetype');
 }
 
 :root {
-  --font-geist-400: 'Geist 400';
-  --font-geist-500: 'Geist 500';
-  --font-geist-600: 'Geist 600';
-  --font-geist-700: 'Geist 700';
+  --font-geist-400: 'Geist 400', 'Geist_400';
+  --font-geist-500: 'Geist 500', 'Geist_500';
+  --font-geist-600: 'Geist 600', 'Geist_600';
+  --font-geist-700: 'Geist 700', 'Geist_700';
   --font-display:
-    'Geist 400', Spline Sans, Inter, ui-sans-serif, system-ui, sans-serif, Apple Color Emoji,
-    Segoe UI Emoji, Segoe UI Symbol, Noto Color Emoji;
+    'Geist 400', 'Geist_400', Spline Sans, Inter, ui-sans-serif, system-ui, sans-serif,
+    Apple Color Emoji, Segoe UI Emoji, Segoe UI Symbol, Noto Color Emoji;
   --font-mono:
     ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, Courier New, monospace;
   --font-rounded: 'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, 'MS PGothic', sans-serif;

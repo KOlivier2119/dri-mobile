@@ -1,198 +1,191 @@
-import { useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import { useState } from 'react';
+import { ActivityIndicator, Alert, Platform, Pressable, StyleSheet, View } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { ThemedText } from '@/components/themed-text';
-import { MOCK, mockDelay } from '@/store/session';
+import { CheckIcon, CloseIcon } from '@/components/onboarding/illustrations';
+import { errorMessage } from '@/components/ui/form-error';
+import { Drivers } from '@/api/endpoints';
+import type { DocType } from '@/api/types';
+import { useI18n } from '@/i18n';
 
 type Phase = 'idle' | 'uploading' | 'done' | 'failed';
 
 /**
- * Simulated document capture — no file is ever read or sent.
- * Tapping "select" invents a placeholder filename and animates progress.
+ * One verification document: take a photo or pick one, then upload it to the
+ * application (JPEG/PNG, max 8 MB — enforced by the API).
  */
 export function DocUploadField({
   label,
   hint,
-  fileName,
-  value,
-  onChange,
-  failOnce = false,
+  docType,
+  applicationId,
+  uploaded,
+  onUploaded,
 }: {
   label: string;
   hint: string;
-  fileName: string;
-  value: boolean;
-  onChange: (uploaded: boolean) => void;
-  /** demo hook: first attempt fails so the retry state is visible */
-  failOnce?: boolean;
+  docType: DocType;
+  applicationId: string;
+  uploaded: boolean;
+  onUploaded: () => void;
 }) {
+  const { t } = useI18n();
   const [uploading, setUploading] = useState(false);
-  const [failed, setFailed] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const attempts = useRef(0);
-  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [failure, setFailure] = useState<string | null>(null);
 
-  useEffect(() => () => { if (timer.current) clearInterval(timer.current); }, []);
+  const phase: Phase = uploading ? 'uploading' : failure ? 'failed' : uploaded ? 'done' : 'idle';
 
-  const phase: Phase = uploading ? 'uploading' : failed ? 'failed' : value ? 'done' : 'idle';
-
-  const start = async () => {
-    if (uploading) return;
-    attempts.current += 1;
-    setFailed(false);
-    setUploading(true);
-    setProgress(0);
-    timer.current = setInterval(() => {
-      setProgress((p) => Math.min(1, p + 0.09));
-    }, 90);
-    await mockDelay(MOCK.uploadDelayMs);
-    if (timer.current) clearInterval(timer.current);
-    setProgress(1);
-    setUploading(false);
-    if (failOnce && attempts.current === 1) {
-      setFailed(true);
+  const pick = async (source: 'camera' | 'library') => {
+    const perm =
+      source === 'camera'
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      setFailure(source === 'camera' ? t('upload.cameraPermission') : t('upload.photosPermission'));
       return;
     }
-    onChange(true);
+    const options: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], quality: 0.7, exif: false };
+    const result =
+      source === 'camera' ? await ImagePicker.launchCameraAsync(options) : await ImagePicker.launchImageLibraryAsync(options);
+    if (result.canceled || !result.assets[0]) return;
+    await upload(result.assets[0]);
+  };
+
+  const upload = async (asset: ImagePicker.ImagePickerAsset) => {
+    setFailure(null);
+    setUploading(true);
+    try {
+      const type = asset.mimeType ?? 'image/jpeg';
+      const name = asset.fileName ?? `${docType.toLowerCase()}.${type.includes('png') ? 'png' : 'jpg'}`;
+      // web hands back a blob: URI that FormData can't stream, so send the Blob itself there
+      const file =
+        Platform.OS === 'web'
+          ? (new File([await (await fetch(asset.uri)).blob()], name, { type }) as unknown as {
+              uri: string;
+              name: string;
+              type: string;
+            })
+          : { uri: asset.uri, name, type };
+      await Drivers.uploadDocument(applicationId, docType, file);
+      onUploaded();
+    } catch (e) {
+      setFailure(errorMessage(e));
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const choose = () => {
+    if (uploading) return;
+    if (Platform.OS === 'web') return void pick('library');
+    Alert.alert(label, undefined, [
+      { text: t('upload.takePhoto'), onPress: () => void pick('camera') },
+      { text: t('upload.chooseLibrary'), onPress: () => void pick('library') },
+      { text: t('common.cancel'), style: 'cancel' },
+    ]);
   };
 
   return (
     <View style={styles.container}>
-      <ThemedText type="label" style={styles.label}>{label}</ThemedText>
+      <ThemedText type="label" style={styles.label}>
+        {label}
+      </ThemedText>
       <Pressable
-        onPress={() => void start()}
+        onPress={choose}
         accessibilityRole="button"
-        accessibilityLabel={`${label}. ${phase === 'done' ? 'Uploaded' : 'Tap to simulate selecting a photo'}`}
+        accessibilityLabel={phase === 'done' ? t('upload.a11yDone', { label }) : t('upload.a11yAdd', { label })}
         style={({ pressed }) => [
           styles.box,
           phase === 'done' && styles.boxDone,
           phase === 'failed' && styles.boxFailed,
-          pressed && { opacity: 0.9 },
+          pressed && { backgroundColor: Colors.surfaceAlt },
         ]}>
-        {phase !== 'done' ? (
-          <View style={styles.uploadIcon}>
-            <View style={styles.docPage}>
-              <View style={styles.docFold} />
-            </View>
-            <View style={styles.docArrow} />
-          </View>
-        ) : (
-          <View style={[styles.uploadIcon, styles.uploadIconDone]}>
-            <View style={styles.check} />
-          </View>
-        )}
-        <View style={{ flex: 1, gap: 2 }}>
-          {phase === 'idle' && (
-            <>
-              <ThemedText type="subtitle" style={{ fontSize: 15, lineHeight: 20 }}>
-                Tap to select a photo
-              </ThemedText>
-              <ThemedText type="small" color={Colors.warmFaint}>{hint}</ThemedText>
-            </>
+        <View
+          style={[
+            styles.uploadIcon,
+            phase === 'done' && styles.uploadIconDone,
+            phase === 'failed' && styles.uploadIconFailed,
+          ]}>
+          {phase === 'uploading' ? (
+            <ActivityIndicator color={Colors.primary} />
+          ) : phase === 'done' ? (
+            <CheckIcon size={24} color={Colors.onPrimary} strokeWidth={2.4} />
+          ) : phase === 'failed' ? (
+            <CloseIcon size={22} color={Colors.danger} strokeWidth={2.2} />
+          ) : (
+            <UploadIcon />
           )}
-          {phase === 'uploading' && (
-            <>
-              <ThemedText type="subtitle" style={{ fontSize: 15, lineHeight: 20 }}>
-                Uploading…
-              </ThemedText>
-              <View style={styles.track}>
-                <View style={[styles.fill, { width: `${Math.round(progress * 100)}%` }]} />
-              </View>
-            </>
-          )}
-          {phase === 'done' && (
-            <>
-              <ThemedText type="subtitle" style={{ fontSize: 15, lineHeight: 20 }} color={Colors.mint}>
-                {fileName}
-              </ThemedText>
-              <ThemedText type="small" color={Colors.warmFaint}>
-                Simulated upload — the file never leaves your device. Tap to replace.
-              </ThemedText>
-            </>
-          )}
-          {phase === 'failed' && (
-            <>
-              <ThemedText type="subtitle" style={{ fontSize: 15, lineHeight: 20 }} color={Colors.danger}>
-                Upload failed
-              </ThemedText>
-              <ThemedText type="small" color={Colors.warmFaint}>
-                (Simulated) Connection dropped. Tap to retry.
-              </ThemedText>
-            </>
-          )}
+        </View>
+        <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+          <ThemedText
+            type="subtitle"
+            style={{ fontSize: 15, lineHeight: 20 }}
+            color={phase === 'failed' ? Colors.danger : undefined}>
+            {phase === 'uploading'
+              ? t('upload.uploading')
+              : phase === 'done'
+                ? t('upload.uploaded')
+                : phase === 'failed'
+                  ? t('upload.failed')
+                  : t('upload.addPhoto')}
+          </ThemedText>
+          <ThemedText type="caption">
+            {phase === 'failed'
+              ? t('upload.retry', { reason: failure ?? '' })
+              : phase === 'done'
+                ? t('upload.tapToReplace')
+                : hint}
+          </ThemedText>
         </View>
       </Pressable>
     </View>
   );
 }
 
+/** Image frame with an up arrow — the empty upload state. */
+function UploadIcon() {
+  return (
+    <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M20 14.5V18a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 18v-3.5M12 15V4M7.5 8.5 12 4l4.5 4.5"
+        stroke={Colors.primary}
+        strokeWidth={1.8}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
 const styles = StyleSheet.create({
   container: { gap: Spacing.two },
-  label: { marginLeft: Spacing.two },
+  label: { color: Colors.text, marginLeft: Spacing.one },
   box: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.three,
-    minHeight: 84,
-    borderRadius: Radius.card,
+    minHeight: 80,
+    borderRadius: Radius.card - 4,
     borderWidth: 1.5,
     borderStyle: 'dashed',
-    borderColor: Colors.inkBorder,
-    backgroundColor: Colors.inkSurface,
+    borderColor: Colors.borderStrong,
+    backgroundColor: Colors.surface,
     padding: Spacing.three,
   },
-  boxDone: { borderStyle: 'solid', borderColor: Colors.emerald },
-  boxFailed: { borderStyle: 'solid', borderColor: Colors.danger },
+  boxDone: { borderStyle: 'solid', borderColor: Colors.primaryTint },
+  boxFailed: { borderStyle: 'solid', borderColor: Colors.danger, backgroundColor: Colors.dangerSoft },
   uploadIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 16,
-    backgroundColor: Colors.inkSurfaceHi,
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: Colors.primarySoft,
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
   },
-  uploadIconDone: { backgroundColor: Colors.mintSoft },
-  docPage: {
-    width: 22,
-    height: 28,
-    borderRadius: 4,
-    borderWidth: 2,
-    borderColor: Colors.mint,
-  },
-  docFold: {
-    position: 'absolute',
-    top: -1,
-    right: -1,
-    width: 8,
-    height: 8,
-    backgroundColor: Colors.inkSurfaceHi,
-    borderBottomLeftRadius: 4,
-    borderLeftWidth: 2,
-    borderBottomWidth: 2,
-    borderColor: Colors.mint,
-  },
-  docArrow: {
-    width: 2,
-    height: 14,
-    backgroundColor: Colors.warmDim,
-    marginTop: 2,
-  },
-  check: {
-    width: 18,
-    height: 9,
-    borderLeftWidth: 3,
-    borderBottomWidth: 3,
-    borderColor: Colors.mint,
-    transform: [{ rotate: '-45deg' }],
-    marginTop: -4,
-  },
-  track: {
-    height: 5,
-    borderRadius: 3,
-    backgroundColor: Colors.inkSurfaceHi,
-    overflow: 'hidden',
-    marginTop: 6,
-  },
-  fill: { height: 5, borderRadius: 3, backgroundColor: Colors.mint },
+  uploadIconDone: { backgroundColor: Colors.primary },
+  uploadIconFailed: { backgroundColor: Colors.surface },
 });

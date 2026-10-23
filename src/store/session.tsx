@@ -1,119 +1,201 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as React from 'react';
 
+import { ApiError, setSessionLostHandler } from '@/api/client';
+import { Auth, Drivers, Onboarding } from '@/api/endpoints';
+import { disconnectRealtime } from '@/api/realtime';
+import { clearTokens, getTokens, loadTokens, saveTokens } from '@/api/tokens';
+import { tr } from '@/i18n';
+import type { AuthResult, CodeSent, OnboardingState, Payment, User } from '@/api/types';
+
+export type Journey = 'customer' | 'driver';
+
 /**
- * UI-only demo state. Nothing here is a real authenticated session —
- * it is local persistence so the prototype behaves coherently across restarts.
+ * Client session. The server is the authority for identity, role and
+ * onboarding progress (`/auth/me`, `/onboarding/state`); the only things kept
+ * locally are UI preferences the server has no notion of: whether the intro
+ * was seen, which portal the person is looking at, and the email awaiting a
+ * verification code.
  */
-
-export type Role = 'client' | 'driver';
-
-export type DriverStatus = 'unsubmitted' | 'submitted' | 'review' | 'changes' | 'approved' | 'rejected';
-
 export type Session = {
   hydrated: boolean;
   onboarded: boolean;
-  role: Role | null;
-  /** mock "signed in" flag for the current role */
-  authed: boolean;
-  phone: string | null;
-  driverStatus: DriverStatus;
+  /** portal the person chose — a view, never a grant */
+  journey: Journey | null;
+  /** registration started but the emailed code not yet entered */
+  pendingEmail: string | null;
+  user: User | null;
+  state: OnboardingState | null;
+  /** driver registration fee attempt, once one exists */
+  fee: Payment | null;
 };
+
+type Prefs = Pick<Session, 'onboarded' | 'journey' | 'pendingEmail'> & {
+  /** last known server state, so a cold start without network still opens the right screen */
+  user: User | null;
+  state: OnboardingState | null;
+};
+
+const PREFS_KEY = 'dri.prefs.v1';
 
 const INITIAL: Session = {
   hydrated: false,
   onboarded: false,
-  role: null,
-  authed: false,
-  phone: null,
-  driverStatus: 'unsubmitted',
+  journey: null,
+  pendingEmail: null,
+  user: null,
+  state: null,
+  fee: null,
 };
-
-const STORAGE_KEY = 'dri.demo.session.v1';
-
-/** Centralized mock backend configuration — never a real SMS provider. */
-export const MOCK = {
-  otpCode: '246810',
-  otpResendSeconds: 30,
-  verifyDelayMs: 900,
-  submitDelayMs: 1400,
-  uploadDelayMs: 1800,
-  demoPhone: '78 123 4567',
-} as const;
 
 type Actions = {
-  hydrate: () => Promise<void>;
   completeOnboarding: () => Promise<void>;
-  chooseRole: (role: Role) => Promise<void>;
-  authenticate: (phone: string) => Promise<void>;
-  setDriverStatus: (status: DriverStatus) => Promise<void>;
-  resetDemo: () => Promise<void>;
+  chooseJourney: (journey: Journey) => Promise<void>;
+  register: (input: { displayName: string; email: string; phone: string; password: string }) => Promise<CodeSent>;
+  verify: (code: string) => Promise<void>;
+  resendCode: () => Promise<CodeSent>;
+  login: (email: string, password: string) => Promise<void>;
+  completeReset: (result: AuthResult) => Promise<void>;
+  /** re-read user, onboarding state and fee from the API */
+  refresh: () => Promise<void>;
+  updateDisplayName: (name: string) => Promise<void>;
+  signOut: () => Promise<void>;
 };
 
-const SessionContext = React.createContext<{ session: Session } & Actions>({
-  session: INITIAL,
-  hydrate: async () => {},
-  completeOnboarding: async () => {},
-  chooseRole: async () => {},
-  authenticate: async () => {},
-  setDriverStatus: async () => {},
-  resetDemo: async () => {},
-});
-
-async function persist(session: Session) {
-  const { hydrated: _hydrated, ...stored } = session;
-  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(stored)).catch(() => {});
-}
+const SessionContext = React.createContext<{ session: Session } & Actions>(null as never);
 
 export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = React.useState<Session>(INITIAL);
+  const ref = React.useRef(session);
+  React.useEffect(() => {
+    ref.current = session;
+  }, [session]);
 
-  const update = React.useCallback(async (patch: Partial<Session>) => {
+  const patch = React.useCallback((next: Partial<Session>) => {
     setSession((prev) => {
-      const next = { ...prev, ...patch };
-      void persist(next);
-      return next;
+      const merged = { ...prev, ...next };
+      const prefs: Prefs = {
+        onboarded: merged.onboarded,
+        journey: merged.journey,
+        pendingEmail: merged.pendingEmail,
+        user: merged.user,
+        state: merged.state,
+      };
+      void AsyncStorage.setItem(PREFS_KEY, JSON.stringify(prefs)).catch(() => {});
+      return merged;
     });
   }, []);
 
-  const hydrate = React.useCallback(async () => {
+  const signedOut = React.useCallback(() => {
+    disconnectRealtime();
+    patch({ user: null, state: null, fee: null });
+  }, [patch]);
+
+  const refresh = React.useCallback(async () => {
+    if (!getTokens()) return;
     try {
-      const raw = await AsyncStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        setSession({ ...INITIAL, hydrated: true, ...JSON.parse(raw) });
-        return;
-      }
-    } catch {
-      // fresh install on read failure — fall through
+      const [user, state] = await Promise.all([Auth.me(), Onboarding.state()]);
+      // the fee only exists once there is an application to pay it for
+      const fee = state.driver.applicationStatus ? await Drivers.fee().catch(() => null) : null;
+      patch({ user, state, fee });
+    } catch (error) {
+      // offline: keep the cached session; a rejected refresh token already signed us out
+      if (error instanceof ApiError && error.status === 0) return;
+      throw error;
     }
-    setSession((prev) => ({ ...prev, hydrated: true }));
-  }, []);
+  }, [patch]);
+
+  React.useEffect(() => {
+    setSessionLostHandler(signedOut);
+    void (async () => {
+      let prefs: Partial<Prefs> = {};
+      try {
+        const raw = await AsyncStorage.getItem(PREFS_KEY);
+        if (raw) prefs = JSON.parse(raw) as Prefs;
+      } catch {
+        // unreadable prefs behave like a fresh install
+      }
+      const tokens = await loadTokens();
+      setSession({
+        ...INITIAL,
+        onboarded: prefs.onboarded ?? false,
+        journey: prefs.journey ?? null,
+        pendingEmail: prefs.pendingEmail ?? null,
+        user: tokens ? (prefs.user ?? null) : null,
+        state: tokens ? (prefs.state ?? null) : null,
+      });
+      if (tokens) await refresh().catch(() => {});
+      setSession((prev) => ({ ...prev, hydrated: true }));
+    })();
+  }, [refresh, signedOut]);
+
+  const startSession = React.useCallback(
+    async ({ user, tokens }: AuthResult) => {
+      await saveTokens(tokens);
+      patch({ user, pendingEmail: null });
+      await refresh();
+    },
+    [patch, refresh],
+  );
 
   const actions = React.useMemo<Actions>(
     () => ({
-      hydrate,
-      completeOnboarding: () => update({ onboarded: true }),
-      chooseRole: (role) => update({ role, authed: false }),
-      authenticate: (phone) => update({ phone, authed: true }),
-      setDriverStatus: (driverStatus) => update({ driverStatus }),
-      resetDemo: async () => {
-        await AsyncStorage.removeItem(STORAGE_KEY).catch(() => {});
-        setSession({ ...INITIAL, hydrated: true });
+      completeOnboarding: async () => patch({ onboarded: true }),
+      chooseJourney: async (journey) => {
+        patch({ journey });
+        await refresh().catch(() => {});
+      },
+      register: async (input) => {
+        const email = input.email.trim().toLowerCase();
+        // the portal chosen on the first screen decides the account type; a driver
+        // sign-up opens the driver journey but never grants the DRIVER role
+        const accountType = ref.current.journey === 'driver' ? 'driver' : 'rider';
+        const sent = await Auth.register({ ...input, email, accountType });
+        patch({ pendingEmail: email });
+        return sent;
+      },
+      verify: async (code) => {
+        const email = ref.current.pendingEmail;
+        if (!email) throw new ApiError(400, tr('auth.verify.noAccount'));
+        await startSession(await Auth.verify(email, code));
+      },
+      resendCode: async () => {
+        const email = ref.current.pendingEmail;
+        if (!email) throw new ApiError(400, tr('auth.verify.noAccount'));
+        return Auth.resendVerification(email);
+      },
+      login: async (email, password) => {
+        await startSession(await Auth.login(email.trim().toLowerCase(), password));
+      },
+      completeReset: startSession,
+      refresh,
+      updateDisplayName: async (name) => {
+        const user = await Auth.updateProfile(name.trim());
+        patch({ user });
+        await refresh();
+      },
+      signOut: async () => {
+        const refreshToken = getTokens()?.refreshToken;
+        if (refreshToken) await Auth.logout(refreshToken).catch(() => {});
+        await clearTokens();
+        signedOut();
       },
     }),
-    [hydrate, update],
+    [patch, refresh, signedOut, startSession],
   );
 
-  return (
-    <SessionContext.Provider value={{ session, ...actions }}>{children}</SessionContext.Provider>
-  );
+  return <SessionContext.Provider value={{ session, ...actions }}>{children}</SessionContext.Provider>;
 }
 
 export function useSession() {
   return React.useContext(SessionContext);
 }
 
-/** Simulated network latency for mock service calls. */
-export function mockDelay(ms: number) {
-  return new Promise<void>((resolve) => setTimeout(resolve, ms));
+/** The portal on screen: what the person picked, else what the server knows them as. */
+export function portalOf(session: Session): Journey {
+  return session.journey ?? session.state?.journey ?? 'customer';
 }
+
+export const canBook = (s: Session) => Boolean(s.state?.customer.canBook);
+export const canWork = (s: Session) => Boolean(s.state?.driver.canWork);
+export const feePaid = (s: Session) => Boolean(s.fee?.paid || s.fee?.settlement === 'SETTLED');

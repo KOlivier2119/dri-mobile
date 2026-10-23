@@ -1,174 +1,103 @@
-import { router } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Redirect, router } from 'expo-router';
+import { useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Colors, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
+import { Colors, Spacing } from '@/constants/theme';
 import { ThemedText } from '@/components/themed-text';
 import { Button, ChevronRight } from '@/components/ui/button';
-import { BrandMark } from '@/components/brand/mark';
-import { useSession, type DriverStatus } from '@/store/session';
+import { Screen } from '@/components/ui/screen';
+import { CheckIcon, ClockIcon, CloseIcon } from '@/components/onboarding/illustrations';
+import { useLiveRefresh } from '@/api/realtime';
+import { canWork, useSession } from '@/store/session';
+import { useI18n } from '@/i18n';
 
-const STATES: Record<
-  Exclude<DriverStatus, 'unsubmitted'>,
-  { ring: string; mark: string; title: string; copy: string; next: string }
-> = {
-  submitted: {
-    ring: Colors.warm,
-    mark: '✓',
-    title: 'Application submitted',
-    copy: 'Your application is safely in the queue. Nothing more is needed from you right now.',
-    next: 'What happens next: the demo moves it to “Under review”.',
-  },
-  review: {
-    ring: Colors.mint,
-    mark: '◔',
-    title: 'Under review',
-    copy: 'A demo reviewer is looking at your licence and documents. This normally takes a day.',
-    next: 'What happens next: in the demo, use the state switch below to see each outcome.',
-  },
-  changes: {
-    ring: Colors.danger,
-    mark: '!',
-    title: 'More information needed',
-    copy: 'One item could not be read clearly in this demo. Re-open the application and re-attach the document.',
-    next: 'What happens next: fix the flagged step and resubmit.',
-  },
-  approved: {
-    ring: Colors.mint,
-    mark: '✓',
-    title: 'Approved for the demo',
-    copy: 'In the real product a human verification team would have signed off here. In this prototype, approval is simulated.',
-    next: 'What happens next: go online and receive demo trip requests.',
-  },
-  rejected: {
-    ring: Colors.danger,
-    mark: '×',
-    title: 'Not approved',
-    copy: 'This demo state shows what a rejection looks like. You may apply again after six months.',
-    next: 'What happens next: review the requirements and reapply.',
-  },
+type Decision = 'pending' | 'approved' | 'rejected';
+
+const TONE: Record<Decision, { bg: string; fg: string }> = {
+  pending: { bg: Colors.sunSoft, fg: Colors.sun },
+  approved: { bg: Colors.primary, fg: Colors.onPrimary },
+  rejected: { bg: Colors.dangerSoft, fg: Colors.danger },
 };
 
-const ORDER: Exclude<DriverStatus, 'unsubmitted'>[] = ['submitted', 'review', 'changes', 'approved', 'rejected'];
-
+/**
+ * Waiting room between submission and the DRIVER role. The decision is read
+ * from /onboarding/state; nothing here can unlock the hub — only an admin's
+ * approval on the server does.
+ */
 export default function DriverStatusScreen() {
-  const { session, setDriverStatus } = useSession();
-  const status = session.driverStatus === 'unsubmitted' ? 'submitted' : session.driverStatus;
-  const state = STATES[status];
+  const { session, refresh } = useSession();
+  const { t } = useI18n();
+  const [checking, setChecking] = useState(false);
+
+  useLiveRefresh({ events: [], onEvent: () => void refresh().catch(() => {}), pollMs: 30_000, enabled: Boolean(session.user) });
+
+  if (!session.user || !session.state) return <Redirect href="/" />;
+
+  const driver = session.state.driver;
+  const decision: Decision = canWork(session)
+    ? 'approved'
+    : driver.applicationStatus === 'REJECTED'
+      ? 'rejected'
+      : 'pending';
+  const tone = TONE[decision];
+  const firstName = session.user.displayName?.split(' ')[0];
+
+  const check = async () => {
+    setChecking(true);
+    await refresh().catch(() => {});
+    setChecking(false);
+  };
 
   return (
-    <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Animated.View entering={FadeInDown.duration(420)} style={styles.hero}>
-          <View style={[styles.ring, { borderColor: state.ring }]}>
-            <ThemedText style={[styles.glyph, { color: state.ring }]} accessibilityLabel={state.title}>
-              {state.mark}
-            </ThemedText>
-          </View>
-          <ThemedText type="overline">Driver application</ThemedText>
-          <ThemedText type="title" style={styles.title}>
-            {state.title}
-          </ThemedText>
-          <ThemedText type="body" color={Colors.warmDim} style={styles.copy}>
-            {state.copy}
-          </ThemedText>
-          <ThemedText type="small" color={Colors.warmFaint}>
-            {state.next}
-          </ThemedText>
-        </Animated.View>
-
-        {status === 'approved' ? (
-          <Button
-            title="Open driver hub"
-            onPress={() => router.replace('/driver/home')}
-            accessoryRight={<ChevronRight />}
-          />
-        ) : status === 'changes' ? (
-          <Button
-            title="Fix application"
-            variant="secondary"
-            onPress={() => router.replace('/driver/apply')}
-          />
+    <Screen
+      centered
+      footer={
+        decision === 'approved' ? (
+          <Button title={t('review.start')} onPress={() => router.replace('/driver/home')} accessoryRight={<ChevronRight />} />
+        ) : decision === 'rejected' ? (
+          <Button title={t('review.applyAgain')} onPress={() => router.replace('/driver/apply')} />
         ) : (
-          <Button
-            title="Continue"
-            variant="secondary"
-            onPress={() => router.replace('/driver/home')}
-          />
-        )}
-
-        <View style={styles.demoBox}>
-          <ThemedText type="label">Demo control — simulated verification state</ThemedText>
-          <View style={styles.stateRow}>
-            {ORDER.map((s) => (
-              <Pressable
-                key={s}
-                onPress={() => void setDriverStatus(s)}
-                accessibilityRole="button"
-                accessibilityState={{ selected: s === status }}
-                accessibilityLabel={`Show state: ${s}`}
-                style={[styles.stateChip, s === status && styles.stateChipOn]}>
-                <ThemedText type="small" color={s === status ? Colors.ink : Colors.warmDim} style={{ textTransform: 'capitalize' }}>
-                  {s === 'changes' ? 'needs info' : s}
-                </ThemedText>
-              </Pressable>
-            ))}
-          </View>
-          <View style={styles.brandRow}>
-            <BrandMark size={20} />
-            <ThemedText type="small" color={Colors.warmFaint} style={{ flex: 1 }}>
-              No real verification provider is involved — every state here is local demo data.
-            </ThemedText>
-          </View>
+          <Button title={t('review.check')} variant="secondary" loading={checking} onPress={() => void check()} />
+        )
+      }>
+      <Animated.View entering={FadeInDown.duration(420)} style={styles.hero}>
+        <View style={[styles.ring, { backgroundColor: tone.bg }]}>
+          {decision === 'approved' ? (
+            <CheckIcon size={36} color={tone.fg} strokeWidth={2.4} />
+          ) : decision === 'rejected' ? (
+            <CloseIcon size={34} color={tone.fg} strokeWidth={2.4} />
+          ) : (
+            <ClockIcon size={36} color={tone.fg} strokeWidth={2} />
+          )}
         </View>
-      </ScrollView>
-    </SafeAreaView>
+        <ThemedText type="title" style={styles.center}>
+          {decision === 'approved' ? t('review.approved') : decision === 'rejected' ? t('review.rejected') : t('review.pending')}
+        </ThemedText>
+        <ThemedText type="body" color={Colors.textDim} style={[styles.center, styles.copy]}>
+          {decision === 'approved'
+            ? firstName
+              ? t('review.approvedCopy', { name: firstName })
+              : t('review.approvedCopyNoName')
+            : decision === 'rejected'
+              ? (driver.decisionReason ?? t('review.rejectedCopy'))
+              : t('review.pendingCopy')}
+        </ThemedText>
+      </Animated.View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: Colors.ink },
-  content: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    width: '100%',
-    maxWidth: MaxContentWidth,
-    alignSelf: 'center',
-    paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.five,
-    gap: Spacing.five,
-  },
-  hero: { alignItems: 'center', gap: Spacing.three, textAlign: 'center' },
+  hero: { alignItems: 'center', gap: Spacing.two },
   ring: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    borderWidth: 2,
+    width: 88,
+    height: 88,
+    borderRadius: 44,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: Spacing.two,
+    marginBottom: Spacing.three,
   },
-  glyph: { fontSize: 34 },
-  title: { fontSize: 28, lineHeight: 34, textAlign: 'center' },
-  copy: { textAlign: 'center', maxWidth: 360 },
-  demoBox: {
-    gap: Spacing.three,
-    borderRadius: Radius.card,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: Colors.inkBorder,
-    padding: Spacing.three,
-  },
-  stateRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
-  stateChip: {
-    borderRadius: Radius.pill,
-    borderWidth: 1,
-    borderColor: Colors.inkBorder,
-    backgroundColor: Colors.inkSurface,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-  },
-  stateChipOn: { backgroundColor: Colors.mint, borderColor: Colors.mint },
-  brandRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  center: { textAlign: 'center' },
+  copy: { maxWidth: 380 },
 });

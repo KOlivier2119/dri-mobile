@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, View, useWindowDimensions, type NativeScrollEvent, type NativeSyntheticEvent, type LayoutChangeEvent } from 'react-native';
+import { ScrollView, StyleSheet, View, type NativeScrollEvent, type NativeSyntheticEvent, type LayoutChangeEvent } from 'react-native';
 import Animated, {
   interpolateColor,
   useAnimatedStyle,
@@ -9,28 +9,36 @@ import Animated, {
 } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Colors, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
+import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
 import { ThemedText } from '@/components/themed-text';
 import { Button, ChevronRight } from '@/components/ui/button';
-import { ConfidenceStage, RouteMapStage, ServiceSheetStage } from '@/components/onboarding/stages';
-import { MoonIcon, WheelIcon } from '@/components/onboarding/illustrations';
+import { BrandMark, Wordmark } from '@/components/brand/mark';
+import { CityRouteScene, DayNightScene, TrustScene } from '@/components/onboarding/stages';
+import { LanguageSwitcher } from '@/components/language-switcher';
+import { useLayout } from '@/hooks/use-layout';
+import { useI18n } from '@/i18n';
 import { useSession } from '@/store/session';
 
-const PAGES = 3;
+/** Page 0 is the brand page (logo + motto); the rest are illustrated. */
+const PAGES = [
+  { key: 'brand' },
+  { key: 'route', scene: <CityRouteScene />, text: 'onboarding.route' },
+  { key: 'day-night', scene: <DayNightScene />, text: 'onboarding.dayNight' },
+  { key: 'trust', scene: <TrustScene />, text: 'onboarding.trust' },
+] as const;
 
 export default function OnboardingScreen() {
   const { completeOnboarding } = useSession();
-  const { width: screenWidth } = useWindowDimensions();
+  const { t } = useI18n();
+  const { gutter, short } = useLayout();
   const [page, setPage] = useState(0);
   const [width, setWidth] = useState(0);
   const scrollX = useSharedValue(0);
   const scrollRef = useRef<ScrollView>(null);
   const busy = useRef(false);
 
-  const headlineStyle = [
-    styles.headline,
-    { fontSize: Math.min(34, Math.max(26, screenWidth * 0.094)) },
-  ];
+  // onLayout reports `inner`'s border box; the pager only sees the area inside its padding
+  const pageWidth = Math.max(0, width - gutter * 2);
 
   const goTo = useCallback(
     (next: number) => {
@@ -38,9 +46,9 @@ export default function OnboardingScreen() {
       busy.current = true;
       setTimeout(() => (busy.current = false), 420);
       setPage(next);
-      scrollRef.current?.scrollTo({ x: next * width, animated: true });
+      scrollRef.current?.scrollTo({ x: next * pageWidth, animated: true });
     },
-    [width],
+    [pageWidth],
   );
 
   const finish = useCallback(async () => {
@@ -54,22 +62,33 @@ export default function OnboardingScreen() {
     scrollX.value = e.nativeEvent.contentOffset.x;
   };
 
+  const onMomentumEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (pageWidth > 0) setPage(Math.round(e.nativeEvent.contentOffset.x / pageWidth));
+  };
+
+  const last = page === PAGES.length - 1;
+
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
       <View
-        style={styles.inner}
+        style={[styles.inner, { paddingHorizontal: gutter }]}
         onLayout={(e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width)}>
         <View style={styles.topRow}>
-          <Indicator scrollX={scrollX} width={width || 1} />
-          <ThemedText
-            type="subtitle"
-            style={styles.skip}
-            role="button"
-            accessibilityRole="button"
-            accessibilityLabel="Skip intro"
-            onPress={finish}>
-            Skip
-          </ThemedText>
+          <Indicator scrollX={scrollX} width={pageWidth || 1} label={t('onboarding.progressA11y')} />
+          <View style={styles.topActions}>
+            <LanguageSwitcher compact />
+            {!last ? (
+              <ThemedText
+                type="small"
+                style={styles.skip}
+                role="button"
+                accessibilityRole="button"
+                accessibilityLabel={t('onboarding.skipA11y')}
+                onPress={finish}>
+                {t('common.skip')}
+              </ThemedText>
+            ) : null}
+          </View>
         </View>
 
         {width > 0 && (
@@ -79,115 +98,84 @@ export default function OnboardingScreen() {
             pagingEnabled
             showsHorizontalScrollIndicator={false}
             onScroll={onScroll}
+            onMomentumScrollEnd={onMomentumEnd}
             scrollEventThrottle={16}
             style={styles.pager}>
-            <Page width={width}>
-              <RouteMapStage />
-              <ThemedText type="overline" style={styles.eyebrow}>
-                Designed driver service
-              </ThemedText>
-              <ThemedText type="title" maxFontSizeMultiplier={1.2} style={headlineStyle}>
-                Your car.{'\n'}Your driver.
-              </ThemedText>
-              <ThemedText type="body" color={Colors.warmDim} style={styles.copy}>
-                Get a trusted driver to take the wheel, while you enjoy the journey.
-              </ThemedText>
-            </Page>
-
-            <Page width={width}>
-              <ThemedText type="overline" style={styles.eyebrow}>
-                BOB Night · Private Driver
-              </ThemedText>
-              <ThemedText type="title" maxFontSizeMultiplier={1.2} style={headlineStyle}>
-                Your plans, handled.
-              </ThemedText>
-              <ThemedText type="body" color={Colors.warmDim} style={[styles.copy, styles.copyCenter]}>
-                Book a driver for a night out, a few hours, or a day on your schedule.
-              </ThemedText>
-              <ServiceSheetStage />
-            </Page>
-
-            <Page width={width}>
-              <ConfidenceStage />
-              <ThemedText type="overline" style={styles.eyebrow}>
-                Built for peace of mind
-              </ThemedText>
-              <ThemedText type="title" maxFontSizeMultiplier={1.2} style={headlineStyle}>
-                Move with confidence.
-              </ThemedText>
-              <ThemedText type="body" color={Colors.warmDim} style={styles.copy}>
-                Know who is driving, follow your trip, and keep the details close.
-              </ThemedText>
-            </Page>
+            {PAGES.map((p) => (
+              <ScrollView
+                key={p.key}
+                style={{ width: pageWidth }}
+                contentContainerStyle={[styles.pageContent, { gap: short ? Spacing.three : Spacing.four }]}
+                showsVerticalScrollIndicator={false}>
+                {p.key === 'brand' ? (
+                  <BrandPage compact={short} />
+                ) : (
+                  <>
+                    {p.scene}
+                    <View style={styles.text}>
+                      <ThemedText type="title" maxFontSizeMultiplier={1.2} style={styles.headline}>
+                        {t(`${p.text}.title`)}
+                      </ThemedText>
+                      <ThemedText type="body" color={Colors.textDim} style={styles.copy}>
+                        {t(`${p.text}.copy`)}
+                      </ThemedText>
+                    </View>
+                  </>
+                )}
+              </ScrollView>
+            ))}
           </ScrollView>
         )}
 
         <View style={styles.bottomRow}>
           {page > 0 ? (
             <Button
-              title="Back"
+              title={t('common.back')}
               variant="secondary"
-              size="md"
               style={styles.backBtn}
               onPress={() => goTo(page - 1)}
             />
-          ) : (
-            <View style={styles.roleHints}>
-              <RoleHint icon={<MoonIcon size={16} color={Colors.warmDim} />} text="Night" />
-              <RoleHint icon={<WheelIcon size={16} color={Colors.warmDim} />} text="Day" />
-            </View>
-          )}
-          {page < PAGES - 1 ? (
-            <Button
-              title="Next"
-              onPress={() => goTo(page + 1)}
-              accessoryRight={<ChevronRight />}
-              style={styles.cta}
-            />
-          ) : (
-            <Button title="Get started" onPress={finish} accessoryRight={<ChevronRight />} style={styles.cta} />
-          )}
+          ) : null}
+          <Button
+            title={last ? t('common.getStarted') : t('common.next')}
+            onPress={last ? finish : () => goTo(page + 1)}
+            accessoryRight={<ChevronRight />}
+            style={styles.cta}
+          />
         </View>
       </View>
     </SafeAreaView>
   );
 }
 
-function Page({
-  width,
-  children,
-}: {
-  width: number;
-  children: React.ReactNode;
-}) {
+/** Logo on a soft halo, the wordmark, then the motto. */
+function BrandPage({ compact }: { compact: boolean }) {
+  const { t } = useI18n();
+  const mark = compact ? 104 : 128;
   return (
-    <View style={[styles.page, { width }]}>{children}</View>
-  );
-}
-
-function RoleHint({ icon, text }: { icon: React.ReactNode; text: string }) {
-  return (
-    <View style={styles.roleHint}>
-      {icon}
-      <ThemedText type="small" color={Colors.warmFaint}>
-        {text}
+    <View style={styles.brand} accessible accessibilityLabel={t('brand.a11y')}>
+      <View style={[styles.halo, { width: mark * 2, height: mark * 2, borderRadius: mark }]}>
+        <View style={[styles.haloInner, { width: mark * 1.5, height: mark * 1.5, borderRadius: mark * 0.75 }]}>
+          <BrandMark size={mark} />
+        </View>
+      </View>
+      <Wordmark size={compact ? 24 : 28} style={styles.wordmark} />
+      <ThemedText type="display" maxFontSizeMultiplier={1.2} style={styles.motto}>
+        {t('brand.motto')}
+      </ThemedText>
+      <ThemedText type="overline" style={styles.center}>
+        {t('brand.tagline')}
       </ThemedText>
     </View>
   );
 }
 
-/** Three pills; the active one stretches and turns mint as pages change. */
-function Indicator({
-  scrollX,
-  width,
-}: {
-  scrollX: SharedValue<number>;
-  width: number;
-}) {
+/** One pill per page; the active one stretches and turns green as pages change. */
+function Indicator({ scrollX, width, label }: { scrollX: SharedValue<number>; width: number; label: string }) {
   return (
-    <View style={styles.dotsTrack} accessibilityLabel="Onboarding progress">
-      {[0, 1, 2].map((i) => (
-        <ProgressDot key={i} index={i} scrollX={scrollX} width={width} />
+    <View style={styles.dotsTrack} accessibilityLabel={label}>
+      {PAGES.map((p, i) => (
+        <ProgressDot key={p.key} index={i} scrollX={scrollX} width={width} />
       ))}
     </View>
   );
@@ -206,67 +194,53 @@ function ProgressDot({
     const t = scrollX.value / width;
     const active = Math.max(0, 1 - Math.abs(t - index));
     return {
-      width: 7 + 19 * active,
-      backgroundColor: interpolateColor(active, [0, 1], [Colors.inkBorder, Colors.mint]),
+      width: 8 + 18 * active,
+      backgroundColor: interpolateColor(active, [0, 1], [Colors.borderStrong, Colors.primary]),
     };
   });
   return <Animated.View style={[styles.dot, style]} />;
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: Colors.ink },
+  screen: { flex: 1, backgroundColor: Colors.bg },
   inner: {
     flex: 1,
     width: '100%',
     maxWidth: MaxContentWidth,
     alignSelf: 'center',
-    paddingHorizontal: Spacing.four,
-    paddingBottom: Spacing.four,
+    paddingBottom: Spacing.three,
   },
   topRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    minHeight: 40,
+    minHeight: 44,
+  },
+  dotsTrack: { flexDirection: 'row', gap: 6, alignItems: 'center', minHeight: 8 },
+  dot: { height: 8, borderRadius: 4, backgroundColor: Colors.borderStrong },
+  topActions: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  skip: { color: Colors.textDim, fontSize: 15, paddingVertical: Spacing.two, paddingLeft: Spacing.three },
+  pager: { flex: 1 },
+  pageContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
     paddingVertical: Spacing.two,
   },
-  dotsTrack: { flexDirection: 'row', gap: 8, alignItems: 'center', minHeight: 8 },
-  dot: { height: 7, borderRadius: 4, backgroundColor: Colors.inkBorder },
-  skip: { color: Colors.warmDim, fontSize: 15 },
-  pager: { flex: 1 },
-  page: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.three,
-    paddingVertical: Spacing.three,
-  },
-  eyebrow: { textAlign: 'center' },
-  headline: { lineHeight: 40, textAlign: 'center' },
-  copy: { fontSize: 16, lineHeight: 24, textAlign: 'center', maxWidth: 340 },
-  copyCenter: { marginBottom: Spacing.two },
+  text: { gap: Spacing.two },
+  brand: { alignItems: 'center', gap: Spacing.three },
+  halo: { backgroundColor: Colors.primarySoft, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.two },
+  haloInner: { backgroundColor: Colors.surface, alignItems: 'center', justifyContent: 'center' },
+  wordmark: { marginLeft: 8 },
+  motto: { textAlign: 'center' },
+  center: { textAlign: 'center' },
+  headline: { fontSize: 32, lineHeight: 38 },
+  copy: { maxWidth: 420 },
   bottomRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.three,
+    gap: Spacing.two,
     marginTop: Spacing.three,
   },
-  backBtn: { flex: 0.55 },
-  cta: { flex: 1.45 },
-  roleHints: {
-    flex: 0.55,
-    flexDirection: 'row',
-    gap: Spacing.two,
-    justifyContent: 'center',
-  },
-  roleHint: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    borderRadius: Radius.pill,
-    borderWidth: 1,
-    borderColor: Colors.inkBorder,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
+  backBtn: { flex: 1 },
+  cta: { flex: 2 },
 });
