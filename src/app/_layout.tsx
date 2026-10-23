@@ -7,6 +7,7 @@ import { useFonts } from 'expo-font';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { SplashOverlay } from '@/components/brand/splash-overlay';
+import { PageTitle } from '@/components/page-title';
 import { Colors } from '@/constants/theme';
 import { I18nProvider } from '@/i18n';
 import { SessionProvider, useSession } from '@/store/session';
@@ -52,6 +53,7 @@ function Shell() {
 
   return (
     <ThemeProvider value={theme}>
+      <PageTitle title="DRI" />
       <StatusBar style="dark" />
       {/* screens guard on the session, so mounting them before it loads would redirect deep links away */}
       {session.hydrated ? (
