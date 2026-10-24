@@ -133,10 +133,10 @@ export const Drivers = {
   applications: () => api<DriverApplication[]>('/drivers/applications'),
   apply: (form: ApplicationForm) =>
     api<DriverApplication>('/drivers/applications', { method: 'POST', body: form }),
-  uploadDocument: (applicationId: string, docType: DocType, file: { uri: string; name: string; type: string }) => {
+  uploadDocument: (applicationId: string, docType: DocType, file: Blob) => {
     const form = new FormData();
     form.append('docType', docType);
-    form.append('file', file as unknown as Blob);
+    form.append('file', file);
     return api<{ id: string; docType: DocType }>(`/drivers/applications/${applicationId}/documents`, {
       method: 'POST',
       body: form,

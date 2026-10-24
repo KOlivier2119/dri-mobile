@@ -1,3 +1,4 @@
+import { File as FsFile } from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 import { useState } from 'react';
 import { ActivityIndicator, Alert, Platform, Pressable, StyleSheet, View } from 'react-native';
@@ -13,9 +14,24 @@ import { useI18n } from '@/i18n';
 
 type Phase = 'idle' | 'uploading' | 'done' | 'failed';
 
+/** What the API accepts (it checks the bytes, not the name). */
+const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'application/pdf'];
+
+/** The browser's file chooser; resolves `null` when nothing is picked. */
+function pickWebFile(): Promise<File | null> {
+  return new Promise((resolve) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = ACCEPTED_TYPES.join(',');
+    input.onchange = () => resolve(input.files?.[0] ?? null);
+    input.oncancel = () => resolve(null);
+    input.click();
+  });
+}
+
 /**
- * One verification document: take a photo or pick one, then upload it to the
- * application (JPEG/PNG, max 8 MB — enforced by the API).
+ * One verification document: take a photo, pick one, or pick a saved file,
+ * then upload it to the application (JPEG/PNG/PDF, max 8 MB — enforced by the API).
  */
 export function DocUploadField({
   label,
@@ -51,24 +67,26 @@ export function DocUploadField({
     const result =
       source === 'camera' ? await ImagePicker.launchCameraAsync(options) : await ImagePicker.launchImageLibraryAsync(options);
     if (result.canceled || !result.assets[0]) return;
-    await upload(result.assets[0]);
+    // expo/fetch (the global fetch on native) can't send React Native's `{ uri, name, type }`
+    // parts, so hand FormData a real Blob: the picked file itself
+    await upload(new FsFile(result.assets[0].uri));
   };
 
-  const upload = async (asset: ImagePicker.ImagePickerAsset) => {
+  /** A saved scan or PDF from the phone's files (Downloads, Drive, WhatsApp…). */
+  const pickFile = async () => {
+    try {
+      const picked = await FsFile.pickFileAsync({ mimeTypes: ACCEPTED_TYPES });
+      if (picked.canceled) return;
+      await upload(picked.result);
+    } catch (e) {
+      setFailure(errorMessage(e));
+    }
+  };
+
+  const upload = async (file: Blob) => {
     setFailure(null);
     setUploading(true);
     try {
-      const type = asset.mimeType ?? 'image/jpeg';
-      const name = asset.fileName ?? `${docType.toLowerCase()}.${type.includes('png') ? 'png' : 'jpg'}`;
-      // web hands back a blob: URI that FormData can't stream, so send the Blob itself there
-      const file =
-        Platform.OS === 'web'
-          ? (new File([await (await fetch(asset.uri)).blob()], name, { type }) as unknown as {
-              uri: string;
-              name: string;
-              type: string;
-            })
-          : { uri: asset.uri, name, type };
       await Drivers.uploadDocument(applicationId, docType, file);
       onUploaded();
     } catch (e) {
@@ -80,12 +98,21 @@ export function DocUploadField({
 
   const choose = () => {
     if (uploading) return;
-    if (Platform.OS === 'web') return void pick('library');
-    Alert.alert(label, undefined, [
-      { text: t('upload.takePhoto'), onPress: () => void pick('camera') },
-      { text: t('upload.chooseLibrary'), onPress: () => void pick('library') },
-      { text: t('common.cancel'), style: 'cancel' },
-    ]);
+    if (Platform.OS === 'web') {
+      return void pickWebFile().then((file) => file && upload(file));
+    }
+    // Android shows at most three buttons, so there a tap outside the dialog cancels instead
+    Alert.alert(
+      label,
+      undefined,
+      [
+        { text: t('upload.takePhoto'), onPress: () => void pick('camera') },
+        { text: t('upload.chooseLibrary'), onPress: () => void pick('library') },
+        { text: t('upload.chooseFile'), onPress: () => void pickFile() },
+        ...(Platform.OS === 'ios' ? [{ text: t('common.cancel'), style: 'cancel' as const }] : []),
+      ],
+      { cancelable: true },
+    );
   };
 
   return (
