@@ -20,7 +20,7 @@ import { useLayout } from '@/hooks/use-layout';
 import { useNearbyDrivers } from '@/hooks/use-nearby-drivers';
 import { usePosition } from '@/hooks/use-position';
 import { useRemote } from '@/hooks/use-remote';
-import { useSession } from '@/store/session';
+import { inAppPayments, useSession } from '@/store/session';
 import { bookingProgress, bookingStatusKey, isActiveBooking } from '@/utils/booking';
 import { useI18n, type MessageKey } from '@/i18n';
 
@@ -198,10 +198,11 @@ export default function CustomerHome() {
 /** Three swipeable steps: book, meet at your car, ride. */
 function HowItWorks({ gutter }: { gutter: number }) {
   const { t } = useI18n();
+  const { session } = useSession();
   const steps = [
     { title: t('discover.book'), copy: t('discover.bookCopy'), icon: <PinIcon size={20} color={Colors.primary} /> },
     { title: t('discover.meet'), copy: t('discover.meetCopy'), icon: <CarIcon size={20} color={Colors.primary} /> },
-    { title: t('discover.ride'), copy: t('discover.rideCopy'), icon: <CheckIcon size={20} color={Colors.primary} strokeWidth={2.4} /> },
+    { title: t('discover.ride'), copy: t(inAppPayments(session) ? 'discover.rideCopy' : 'offApp.rideCopy'), icon: <CheckIcon size={20} color={Colors.primary} strokeWidth={2.4} /> },
   ];
   return (
     <ScrollView

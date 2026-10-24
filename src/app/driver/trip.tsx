@@ -14,7 +14,7 @@ import { Trips } from '@/api/endpoints';
 import { useLiveRefresh } from '@/api/realtime';
 import type { TripStatus } from '@/api/types';
 import { useRemote } from '@/hooks/use-remote';
-import { useSession } from '@/store/session';
+import { inAppPayments, useSession } from '@/store/session';
 import { useI18n, type MessageKey } from '@/i18n';
 
 const TRAIL_MS = 20_000;
@@ -103,9 +103,9 @@ export default function DriverTripScreen() {
           </View>
         ) : null}
         <ThemedText type="title">{t(headlineKey(status))}</ThemedText>
-        {sublineKey(status) ? (
+        {sublineKey(status, inAppPayments(session)) ? (
           <ThemedText type="body" color={Colors.textDim}>
-            {t(sublineKey(status)!)}
+            {t(sublineKey(status, inAppPayments(session))!)}
           </ThemedText>
         ) : null}
       </View>
@@ -222,7 +222,7 @@ function headlineKey(status?: TripStatus): MessageKey {
   }
 }
 
-function sublineKey(status?: TripStatus): MessageKey | null {
+function sublineKey(status: TripStatus | undefined, paysInApp: boolean): MessageKey | null {
   switch (status) {
     case 'NOT_STARTED':
       return 'trip.subline.notStarted';
@@ -233,7 +233,8 @@ function sublineKey(status?: TripStatus): MessageKey | null {
     case 'IN_PROGRESS':
       return 'trip.subline.inProgress';
     case 'COMPLETED':
-      return 'trip.subline.completed';
+      // with no in-app payment the driver collects the fare in person
+      return paysInApp ? 'trip.subline.completed' : 'offApp.driverCompleted';
     case 'CANCELLED':
       return 'trip.subline.cancelled';
     case 'INTERRUPTED':

@@ -199,3 +199,5 @@ export function portalOf(session: Session): Journey {
 export const canBook = (s: Session) => Boolean(s.state?.customer.canBook);
 export const canWork = (s: Session) => Boolean(s.state?.driver.canWork);
 export const feePaid = (s: Session) => Boolean(s.fee?.paid || s.fee?.settlement === 'SETTLED');
+/** Whether the app collects payments; off, riders pay the driver and the fee is deferred. */
+export const inAppPayments = (s: Session) => s.state?.inAppPayments !== false;

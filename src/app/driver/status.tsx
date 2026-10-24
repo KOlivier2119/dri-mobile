@@ -3,13 +3,13 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
-import { Colors, Spacing } from '@/constants/theme';
+import { Colors, Radius, Spacing } from '@/constants/theme';
 import { ThemedText } from '@/components/themed-text';
 import { Button, ChevronRight } from '@/components/ui/button';
 import { Screen } from '@/components/ui/screen';
 import { CheckIcon, ClockIcon, CloseIcon } from '@/components/onboarding/illustrations';
 import { useLiveRefresh } from '@/api/realtime';
-import { canWork, useSession } from '@/store/session';
+import { canWork, inAppPayments, useSession } from '@/store/session';
 import { useI18n } from '@/i18n';
 
 type Decision = 'pending' | 'approved' | 'rejected';
@@ -83,6 +83,13 @@ export default function DriverStatusScreen() {
               ? (driver.decisionReason ?? t('review.rejectedCopy'))
               : t('review.pendingCopy')}
         </ThemedText>
+        {decision !== 'rejected' && !inAppPayments(session) ? (
+          <View style={styles.notice}>
+            <ThemedText type="caption" style={styles.center}>
+              {t('offApp.feeDeferred')}
+            </ThemedText>
+          </View>
+        ) : null}
       </Animated.View>
     </Screen>
   );
@@ -100,4 +107,12 @@ const styles = StyleSheet.create({
   },
   center: { textAlign: 'center' },
   copy: { maxWidth: 380 },
+  notice: {
+    marginTop: Spacing.three,
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    borderRadius: Radius.field,
+    backgroundColor: Colors.sunSoft,
+    maxWidth: 380,
+  },
 });

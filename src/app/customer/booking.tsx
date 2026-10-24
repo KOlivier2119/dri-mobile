@@ -17,7 +17,7 @@ import { Bookings, Payments, Trips } from '@/api/endpoints';
 import { useLiveRefresh } from '@/api/realtime';
 import type { Booking, Payment, PickupCode } from '@/api/types';
 import { useRemote } from '@/hooks/use-remote';
-import { useSession } from '@/store/session';
+import { inAppPayments, useSession } from '@/store/session';
 import { bookingStatusKey, isActiveBooking } from '@/utils/booking';
 import { useI18n, type MessageKey } from '@/i18n';
 
@@ -112,8 +112,11 @@ export default function BookingScreen() {
     );
   }
 
+  // with in-app payments off the rider pays the driver directly: no pay step, and a
+  // completed booking means the ride is over, not that money moved through DRI
+  const paysInApp = inAppPayments(session);
   const paid = b.status === 'COMPLETED';
-  const payDue = b.status === 'DRIVER_ASSIGNED' && tripStatus === 'COMPLETED';
+  const payDue = paysInApp && b.status === 'DRIVER_ASSIGNED' && tripStatus === 'COMPLETED';
   const cancellable =
     b.status === 'PENDING' ||
     b.status === 'SCHEDULED' ||
@@ -144,7 +147,7 @@ export default function BookingScreen() {
       <Animated.View entering={FadeInDown.delay(80).duration(420)} style={styles.hero}>
         <ThemedText type="title">{t(headlineKey(b))}</ThemedText>
         <ThemedText type="body" color={Colors.textDim}>
-          {subline(b, t, departure)}
+          {subline(b, t, departure, paysInApp)}
         </ThemedText>
       </Animated.View>
 
@@ -206,9 +209,16 @@ export default function BookingScreen() {
         <View style={styles.divider} />
 
         <View style={styles.priceRow}>
-          <ThemedText type="caption">{paid ? t('booking.totalPaid') : t('booking.fixedPrice')}</ThemedText>
+          <ThemedText type="caption">
+            {paid ? t(paysInApp ? 'booking.totalPaid' : 'offApp.tripPrice') : t('booking.fixedPrice')}
+          </ThemedText>
           <ThemedText type="subtitle">{amount(b.amount)} RWF</ThemedText>
         </View>
+        {!paysInApp && b.status !== 'CANCELLED' && b.status !== 'EXPIRED' ? (
+          <ThemedText type="small" color={Colors.textDim}>
+            {t('offApp.payDriver')}
+          </ThemedText>
+        ) : null}
       </View>
 
       <FormError message={error} />
@@ -276,9 +286,9 @@ function headlineKey(b: Booking): MessageKey {
   }
 }
 
-function subline(b: Booking, t: Translate, departure: (d: Date | null) => string) {
+function subline(b: Booking, t: Translate, departure: (d: Date | null) => string, paysInApp: boolean) {
   const when = b.startAt ? departure(new Date(b.startAt)) : null;
-  if (b.status === 'COMPLETED') return t('booking.subline.completed');
+  if (b.status === 'COMPLETED') return t(paysInApp ? 'booking.subline.completed' : 'offApp.completed');
   // the reason is free text from whoever cancelled; show it as written
   if (b.status === 'CANCELLED') return b.cancelReason ?? t('booking.subline.cancelled');
   if (b.status === 'EXPIRED') return t('booking.subline.expired');
@@ -297,7 +307,7 @@ function subline(b: Booking, t: Translate, departure: (d: Date | null) => string
     case 'IN_PROGRESS':
       return t('booking.subline.inProgress');
     case 'COMPLETED':
-      return t('booking.subline.tripCompleted');
+      return t(paysInApp ? 'booking.subline.tripCompleted' : 'offApp.completed');
     default:
       return t('booking.subline.assigned');
   }

@@ -10,7 +10,7 @@ import { Screen } from '@/components/ui/screen';
 import { MomoSheet, isSettled } from '@/components/momo-sheet';
 import { CheckIcon, PhoneIcon } from '@/components/onboarding/illustrations';
 import { Drivers } from '@/api/endpoints';
-import { feePaid, useSession } from '@/store/session';
+import { feePaid, inAppPayments, useSession } from '@/store/session';
 import { useI18n } from '@/i18n';
 import { formatLocal, normalizeDigits } from '@/utils/phone';
 
@@ -23,7 +23,7 @@ export default function DriverFeeScreen() {
   const [payOpen, setPayOpen] = useState(false);
 
   if (!session.user) return <Redirect href="/" />;
-  if (feePaid(session)) return <Redirect href="/" />;
+  if (feePaid(session) || !inAppPayments(session)) return <Redirect href="/" />;
 
   const amount = session.fee?.amount ?? FEE_RWF;
   const pending = session.fee && !isSettled(session.fee) && session.fee.status !== 'FAILED' ? session.fee : null;

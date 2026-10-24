@@ -234,7 +234,7 @@ export const fr: Messages = {
     searching: 'Recherche d’un chauffeur',
     scheduled: 'Planifié',
     pending: 'Non confirmé',
-    paid: 'Payé',
+    paid: 'Terminé',
     cancelled: 'Annulé',
     expired: 'Expiré',
     enRoute: 'Chauffeur en route',
@@ -437,6 +437,16 @@ export const fr: Messages = {
     start: 'Commencer à conduire',
     applyAgain: 'Postuler à nouveau',
     check: 'Vérifier le statut',
+  },
+  offApp: {
+    payDriver: 'Vous payez votre chauffeur directement, en espèces ou par MoMo. Aucun paiement dans l’application.',
+    completed: 'N’oubliez pas de payer votre chauffeur directement, en espèces ou par MoMo.',
+    tripPrice: 'Prix du trajet',
+    rideCopy: 'Détendez-vous dans votre propre voiture. À la fin, payez votre chauffeur en espèces ou par MoMo.',
+    driverCompleted: 'Encaissez la course auprès du client, en espèces ou par MoMo.',
+    agree:
+      'Je confirme que ces informations sont exactes. Je comprends que des frais d’inscription uniques de {amount} RWF s’appliquent. Rien à payer maintenant : je les paierai le mois prochain.',
+    feeDeferred: 'Aucuns frais d’inscription à payer maintenant. Vous les paierez le mois prochain.',
   },
   hub: {
     hi: 'Bonjour, {name}',

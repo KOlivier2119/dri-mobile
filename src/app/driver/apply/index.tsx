@@ -14,13 +14,13 @@ import { CheckIcon } from '@/components/onboarding/illustrations';
 import { Drivers } from '@/api/endpoints';
 import type { DocType, DriverApplication } from '@/api/types';
 import { useLayout } from '@/hooks/use-layout';
-import { useSession } from '@/store/session';
+import { inAppPayments, useSession } from '@/store/session';
 import { useI18n, type MessageKey } from '@/i18n';
 
 /**
  * Driver onboarding: POST /drivers/applications (fields mirror the backend
  * `applicationFormSchema`), then each required document is uploaded to that
- * application. The fee and admin review follow. This never grants the DRIVER
+ * application. The fee (unless deferred) and admin review follow. This never grants the DRIVER
  * role — only an admin approval does.
  */
 
@@ -320,7 +320,7 @@ export default function DriverApplyScreen() {
               {form.agree ? <CheckIcon size={16} color={Colors.onPrimary} strokeWidth={2.8} /> : null}
             </View>
             <ThemedText type="caption" style={{ flex: 1 }}>
-              {t('apply.agree', { amount: amount(REGISTRATION_FEE_RWF) })}
+              {t(inAppPayments(session) ? 'apply.agree' : 'offApp.agree', { amount: amount(REGISTRATION_FEE_RWF) })}
             </ThemedText>
           </Pressable>
           {err('agree') ? <ThemedText type="small" color={Colors.danger}>{err('agree')}</ThemedText> : null}

@@ -2,13 +2,13 @@ import { Redirect } from 'expo-router';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 
 import { Colors } from '@/constants/theme';
-import { canWork, feePaid, portalOf, useSession } from '@/store/session';
+import { canWork, feePaid, inAppPayments, portalOf, useSession } from '@/store/session';
 
 /**
  * Session gate. Every decision here reads server state (`/onboarding/state`,
  * the registration fee) — the client never infers a role:
  *  - customer: account → map → request (the car is added in the request form)
- *  - driver: account → application → documents → fee → admin review → (only then) work
+ *  - driver: account → application → documents → fee (unless deferred) → admin review → (only then) work
  */
 export default function Index() {
   const { session } = useSession();
@@ -32,7 +32,8 @@ export default function Index() {
   if (portalOf(session) === 'driver') {
     if (canWork(session)) return <Redirect href="/driver/home" />;
     if (!driver.applicationStatus || driver.missingDocs.length > 0) return <Redirect href="/driver/apply" />;
-    if (driver.applicationStatus === 'SUBMITTED' && !feePaid(session)) return <Redirect href="/driver/fee" />;
+    if (driver.applicationStatus === 'SUBMITTED' && inAppPayments(session) && !feePaid(session))
+      return <Redirect href="/driver/fee" />;
     return <Redirect href="/driver/status" />;
   }
 

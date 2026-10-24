@@ -233,7 +233,7 @@ export const en = {
     searching: 'Finding a driver',
     scheduled: 'Scheduled',
     pending: 'Not confirmed',
-    paid: 'Paid',
+    paid: 'Completed',
     cancelled: 'Cancelled',
     expired: 'Expired',
     enRoute: 'Driver on the way',
@@ -436,6 +436,16 @@ export const en = {
     start: 'Start driving',
     applyAgain: 'Apply again',
     check: 'Check status',
+  },
+  offApp: {
+    payDriver: 'Pay your driver directly, in cash or by MoMo. There’s no payment in the app.',
+    completed: 'Remember to pay your driver directly, in cash or by MoMo.',
+    tripPrice: 'Trip price',
+    rideCopy: 'Sit back in your own car. Pay your driver in cash or by MoMo at the end.',
+    driverCompleted: 'Collect the fare from the customer, in cash or by MoMo.',
+    agree:
+      'I confirm these details are accurate. I understand a one-time {amount} RWF registration fee applies. There’s nothing to pay now: I’ll pay it next month.',
+    feeDeferred: 'No registration fee to pay now. You’ll pay it next month.',
   },
   hub: {
     hi: 'Hi, {name}',

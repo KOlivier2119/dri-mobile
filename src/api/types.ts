@@ -66,6 +66,9 @@ export type OnboardingState = {
     canWork: boolean;
   };
   nextStep: OnboardingStep;
+  /** false while the app takes no payments: riders pay the driver directly and the
+   *  driver registration fee is deferred. Absent on older APIs, which always charged. */
+  inAppPayments?: boolean;
 };
 
 export type CatalogService = {

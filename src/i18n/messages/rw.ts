@@ -237,7 +237,7 @@ export const rw: Messages = {
     searching: 'Turashakisha umushoferi',
     scheduled: 'Byateganyijwe',
     pending: 'Ntibiremezwa',
-    paid: 'Byishyuwe',
+    paid: 'Byarangiye',
     cancelled: 'Byahagaritswe',
     expired: 'Byarangiye',
     enRoute: 'Umushoferi ari mu nzira',
@@ -440,6 +440,16 @@ export const rw: Messages = {
     start: 'Tangira gutwara',
     applyAgain: 'Ongera usabe',
     check: 'Reba aho bigeze',
+  },
+  offApp: {
+    payDriver: 'Wishyura umushoferi wawe ubwawe, mu mafaranga cyangwa kuri MoMo. Nta kwishyura bikorerwa muri porogaramu.',
+    completed: 'Ntiwibagirwe kwishyura umushoferi wawe, mu mafaranga cyangwa kuri MoMo.',
+    tripPrice: 'Igiciro cy’urugendo',
+    rideCopy: 'Wiruhukire mu modoka yawe. Urugendo rurangiye, wishyura umushoferi mu mafaranga cyangwa kuri MoMo.',
+    driverCompleted: 'Akira amafaranga y’urugendo ku mugenzi, mu mafaranga cyangwa kuri MoMo.',
+    agree:
+      'Ndemeza ko aya makuru ari ukuri. Nzi ko hari amafaranga y’iyandikisha ya {amount} RWF yishyurwa rimwe. Nta cyo nishyura ubu: nzayishyura ukwezi gutaha.',
+    feeDeferred: 'Nta mafaranga y’iyandikisha wishyura ubu. Uzayishyura ukwezi gutaha.',
   },
   hub: {
     hi: 'Muraho, {name}',
