@@ -402,7 +402,7 @@ export const fr: Messages = {
     },
   },
   upload: {
-    addPhoto: 'Ajouter une photo',
+    addPhoto: 'Ajouter une photo ou un fichier',
     uploading: 'Envoi…',
     uploaded: 'Envoyée',
     failed: 'Échec de l’envoi',
@@ -412,8 +412,9 @@ export const fr: Messages = {
     photosPermission: 'Autorisez l’accès aux photos dans les Réglages pour continuer.',
     takePhoto: 'Prendre une photo',
     chooseLibrary: 'Choisir dans la galerie',
+    chooseFile: 'Choisir un fichier (PDF ou image)',
     a11yDone: '{label}. Envoyée. Touchez pour remplacer',
-    a11yAdd: '{label}. Ajouter une photo',
+    a11yAdd: '{label}. Ajouter une photo ou un fichier',
   },
   fee: {
     title: 'Candidature envoyée',

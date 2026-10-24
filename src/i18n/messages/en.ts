@@ -401,7 +401,7 @@ export const en = {
     },
   },
   upload: {
-    addPhoto: 'Add a photo',
+    addPhoto: 'Add a photo or file',
     uploading: 'Uploading…',
     uploaded: 'Uploaded',
     failed: 'Upload failed',
@@ -411,8 +411,9 @@ export const en = {
     photosPermission: 'Allow photo access in Settings to continue.',
     takePhoto: 'Take photo',
     chooseLibrary: 'Choose from library',
+    chooseFile: 'Choose a file (PDF or image)',
     a11yDone: '{label}. Uploaded. Tap to replace',
-    a11yAdd: '{label}. Add a photo',
+    a11yAdd: '{label}. Add a photo or file',
   },
   fee: {
     title: 'Application sent',

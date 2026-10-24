@@ -405,7 +405,7 @@ export const rw: Messages = {
     },
   },
   upload: {
-    addPhoto: 'Ongeramo ifoto',
+    addPhoto: 'Ongeramo ifoto cyangwa dosiye',
     uploading: 'Birimo koherezwa…',
     uploaded: 'Byoherejwe',
     failed: 'Kohereza ntibyakunze',
@@ -415,8 +415,9 @@ export const rw: Messages = {
     photosPermission: 'Emerera amafoto muri Settings kugira ngo ukomeze.',
     takePhoto: 'Fata ifoto',
     chooseLibrary: 'Hitamo mu mafoto',
+    chooseFile: 'Hitamo dosiye (PDF cyangwa ifoto)',
     a11yDone: '{label}. Byoherejwe. Kanda uyisimbuze',
-    a11yAdd: '{label}. Ongeramo ifoto',
+    a11yAdd: '{label}. Ongeramo ifoto cyangwa dosiye',
   },
   fee: {
     title: 'Ubusabe bwoherejwe',

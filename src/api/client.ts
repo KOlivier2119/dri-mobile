@@ -1,3 +1,5 @@
+import { Platform } from 'react-native';
+
 import { API_URL } from '@/api/config';
 import { clearTokens, getTokens, saveTokens } from '@/api/tokens';
 import { currentLocale, tr } from '@/i18n';
@@ -52,8 +54,12 @@ async function send<T>(path: string, { method = 'GET', body, auth = true }: Opti
       headers,
       body: body === undefined ? undefined : isForm ? (body as FormData) : JSON.stringify(body),
     });
-  } catch {
-    throw new ApiError(0, tr('errors.network'));
+  } catch (e) {
+    // only a failed connection is a connection problem; a request the app couldn't even
+    // build (e.g. an unsupported body) must not tell the person to check their Wi-Fi
+    if (isNetworkFailure(e)) throw new ApiError(0, tr('errors.network'));
+    console.error(`${method} ${path} could not be sent`, e);
+    throw new ApiError(0, tr('errors.generic'));
   }
 
   if (res.status === 401 && auth && retry && getTokens()?.refreshToken) {
@@ -98,6 +104,16 @@ function refreshTokens(): Promise<boolean> {
     }
   })();
   return inflight;
+}
+
+/**
+ * expo/fetch (native) reports connection failures as `fetch failed: …` and throws
+ * plain errors for bodies it can't encode; browsers throw a TypeError for both
+ * offline and CORS, and encode any body we build themselves.
+ */
+function isNetworkFailure(e: unknown) {
+  if (!(e instanceof Error)) return false;
+  return e.message.startsWith('fetch failed') || (Platform.OS === 'web' && e instanceof TypeError);
 }
 
 function safeJson(text: string) {
